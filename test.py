@@ -109,7 +109,7 @@ def consultar_orden_de_venta():
 def crear_orden_de_venta():
     cliente = input("👤 Ingresá el nombre del cliente: ")
 
-    # Buscar cliente
+    # Buscar cliente por nombre exacto
     partner_ids = models.execute_kw(
         db, uid, password,
         'res.partner', 'search',
@@ -117,9 +117,23 @@ def crear_orden_de_venta():
         {'limit': 1}
     )
 
+    # Si no existe, crear el cliente
     if not partner_ids:
-        print("❌ Cliente no encontrado.")
-        return
+        print("⚠️ Cliente no encontrado. Vamos a crearlo.")
+        email = input("📧 Ingresá el email del cliente: ")
+        documento = input("🪪 Ingresá el número de documento (DNI/CUIT): ")
+
+        nuevo_cliente_id = models.execute_kw(
+            db, uid, password,
+            'res.partner', 'create',
+            [{
+                'name': cliente,
+                'email': email,
+                'vat': documento
+            }]
+        )
+        print(f"✅ Cliente creado con ID: {nuevo_cliente_id}")
+        partner_ids = [nuevo_cliente_id]
 
     # Crear la orden de venta
     order_id = models.execute_kw(
