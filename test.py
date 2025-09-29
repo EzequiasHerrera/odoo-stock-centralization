@@ -34,16 +34,20 @@ else:
 models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object", transport=transport)
 
 # Buscar producto por código interno
-sku = "010130101"
+#sku = "010130101"
+sku = "Test-Kit-AB"
 product_ids = models.execute_kw(db, uid, password,
     'product.product', 'search',
-    [[['default_code', '=', sku]]], {'limit': 1})
+#    [[['default_code', '=', sku]]], {'limit': 1})
+    [[['x_studio_sku', '=', sku]]], {'limit': 1})
 
 if product_ids:
     product = models.execute_kw(db, uid, password,
         'product.product', 'read', [product_ids])
     print("📦 Producto encontrado:")
     print("Nombre:", product[0]['name'])
+    print("Color:", product[0]['x_studio_color'])
+    print("Talle:", product[0]['x_studio_talle'])
     print("Stock disponible:", product[0]['qty_available'])
 else:
     print("❌ Producto no encontrado.")
