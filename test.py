@@ -31,11 +31,7 @@ print(f"✅ Conectado correctamente. UID: {uid}")
 # Conexión al modelo de objetos
 models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object", transport=transport)
 
-# Buscar producto por código interno
-sku = "Test-Kit-AB"
-product_ids = models.execute_kw(db, uid, password,
-    'product.product', 'search',
-    [[['x_studio_sku', '=', sku]]], {'limit': 1})
+
 # Función 1: Buscar producto por SKU
 def buscar_producto_por_sku():
     sku = input("🔍 Ingresá el SKU del producto: ")
