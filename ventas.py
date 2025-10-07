@@ -37,9 +37,9 @@ def consultar_orden_de_venta(models, db, uid, password):
             db, uid, password,
             'product.product', 'read',
             [product_id],
-            {'fields': ['x_studio_sku']}
+            {'fields': ['default_code']}
         )
-        sku = product_data[0].get('x_studio_sku', 'N/A')
+        sku = product_data[0].get('default_code', 'N/A')
 
         print("Producto:", line['product_id'][1])
         print("SKU:", sku)
@@ -50,8 +50,9 @@ def consultar_orden_de_venta(models, db, uid, password):
 
 # Función: Crear una orden de venta con dos productos
 def crear_orden_de_venta(models, db, uid, password):
-    cliente = input("👤 Ingresá el nombre del cliente: ")
-    partner_id = crear_cliente_si_no_existe(models, db, uid, password, cliente)
+#    nombre = input("👤 Ingresá el Nombre del cliente: ")
+    documento = input("👤 Ingresá el Documento del cliente: ")
+    partner_id = crear_cliente_si_no_existe(models, db, uid, password, documento)
 
     # Crear la orden de venta
     order_id = models.execute_kw(
@@ -66,12 +67,12 @@ def crear_orden_de_venta(models, db, uid, password):
     print(f"\n🛒 Orden creada con ID: {order_id}")
 
     # Ingresar dos SKUs
-    for i in range(1, 3):
+    for i in range(1, 4):
         sku = input(f"🔢 Ingresá el SKU del producto {i}: ")
         product_ids = models.execute_kw(
             db, uid, password,
             'product.product', 'search',
-            [[['x_studio_sku', '=', sku]]],
+            [[['default_code', '=', sku]]],
             {'limit': 1}
         )
 
@@ -103,3 +104,55 @@ def crear_orden_de_venta(models, db, uid, password):
     )
 
     print("✅ Orden confirmada y stock actualizado.")
+
+
+
+# Función: Obtener SKUs y stock actual desde una orden de venta
+#      OBJETIVO: generar una lista de SKU y stock virtual para actualizar stock de TN.
+def obtener_skus_y_stock(models, db, uid, password, nombre_orden):
+    # Buscar la orden de venta por nombre
+    sale_orders = models.execute_kw(
+        db, uid, password,
+        'sale.order', 'search_read',
+        [[['name', '=', nombre_orden]]],
+        {'fields': ['id'], 'limit': 1}
+    )
+
+    if not sale_orders:
+        print("❌ No se encontró la orden de venta.")
+        return []
+
+    order_id = sale_orders[0]['id']
+
+    # Buscar líneas de venta asociadas
+    sale_lines = models.execute_kw(
+        db, uid, password,
+        'sale.order.line', 'search_read',
+        [[['order_id', '=', order_id]]],
+        {'fields': ['product_id']}
+    )
+
+    productos_actualizados = []
+
+    for line in sale_lines:
+        product_id = line['product_id'][0]
+
+        # Leer el SKU y el stock disponible del producto
+        product_data = models.execute_kw(
+            db, uid, password,
+            'product.product', 'read',
+            [product_id],
+            {'fields': ['default_code', 'virtual_available']}
+        )
+
+        if product_data:
+            sku = product_data[0].get('default_code', 'N/A')
+            stock = product_data[0].get('virtual_available', 0.0)
+
+            productos_actualizados.append({
+                'default_code': sku,
+                'virtual_available': stock
+            })
+
+    return productos_actualizados
+

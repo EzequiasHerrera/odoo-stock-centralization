@@ -6,7 +6,8 @@ def buscar_producto_por_sku(models, db, uid, password):
     product_ids = models.execute_kw(
         db, uid, password,
         'product.product', 'search',
-        [[['x_studio_sku', '=', sku]]],
+#        [[['x_studio_sku', '=', sku]]],
+        [[['default_code', '=', sku]]],
         {'limit': 1}
     )
 
@@ -84,11 +85,11 @@ def buscar_producto_por_sku(models, db, uid, password):
                         db, uid, password,
                         'product.product', 'read',
                         [comp_id],
-                        {'fields': ['x_studio_sku', 'qty_available', 'virtual_available']}
+                        {'fields': ['default_code', 'qty_available', 'virtual_available']}
                     )[0]
 
                     print("🧱 Componente:", comp_name)
-                    print("SKU:", comp_data.get('x_studio_sku', 'N/A'))
+                    print("SKU:", comp_data.get('default_code', 'N/A'))
                     print("Cantidad en kit:", comp_qty)
                     print("Stock disponible:", comp_data['qty_available'])
                     print("Stock virtual:", comp_data['virtual_available'])

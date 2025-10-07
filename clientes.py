@@ -1,16 +1,25 @@
 # Función auxiliar para crear cliente si no existe
-def crear_cliente_si_no_existe(models, db, uid, password, nombre):
-    # Buscar cliente por nombre exacto
+def crear_cliente_si_no_existe(models, db, uid, password, documento):
+    # Buscar cliente por Documento exacto
     partner_ids = models.execute_kw(
         db, uid, password,
         'res.partner', 'search',
-        [[['name', '=', nombre]]],
+        [[['vat', '=', documento]]],
         {'limit': 1}
     )
+
+    # Buscar cliente por nombre exacto
+#    partner_ids = models.execute_kw(
+#        db, uid, password,
+#        'res.partner', 'search',
+#        [[['name', '=', nombre]]],
+#        {'limit': 1}
+#    )
 
     # Si no existe, crear el cliente
     if not partner_ids:
         print("⚠️ Cliente no encontrado. Vamos a crearlo.")
+        nombre = input("📧 Ingresá el Nombre del cliente: ")
         email = input("📧 Ingresá el email del cliente: ")
         documento = input("🪪 Ingresá el número de documento (DNI/CUIT): ")
 
