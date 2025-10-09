@@ -1,24 +1,23 @@
 import requests
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
 ACCESS_TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL") + "/webhook"
 
-print(f"{ACCESS_TOKEN}")
-
-def registrar_webhook():
+def registrar_webhook(webhookName):
     url = f"https://api.tiendanube.com/v1/{STORE_ID}/webhooks"
     headers = {
         "Content-Type": "application/json",
-        "Authentication": f"Bearer {ACCESS_TOKEN}"
+        "Authentication": f"bearer {ACCESS_TOKEN}"
     }
     data = {
         "url": WEBHOOK_URL,
-        "event": "product/created"
+        "event": webhookName
     }
 
     response = requests.post(url, json=data, headers=headers)
@@ -32,4 +31,4 @@ def registrar_webhook():
         print("📄 Detalles:", response.text)
 
 if __name__ == "__main__":
-    registrar_webhook()
+    registrar_webhook("order/paid")
