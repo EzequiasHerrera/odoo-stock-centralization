@@ -106,9 +106,10 @@ def crear_orden_de_venta(models, db, uid, password):
     print("✅ Orden confirmada y stock actualizado.")
 
 
-
 # Función: Obtener SKUs y stock actual desde una orden de venta
 #      OBJETIVO: generar una lista de SKU y stock virtual para actualizar stock de TN.
+
+
 def obtener_skus_y_stock(models, db, uid, password, nombre_orden):
     # Buscar la orden de venta por nombre
     sale_orders = models.execute_kw(
@@ -134,25 +135,45 @@ def obtener_skus_y_stock(models, db, uid, password, nombre_orden):
 
     productos_actualizados = []
 
-    for line in sale_lines:
-        product_id = line['product_id'][0]
-
-        # Leer el SKU y el stock disponible del producto
+    def agregar_producto(product_id):
         product_data = models.execute_kw(
             db, uid, password,
             'product.product', 'read',
             [product_id],
             {'fields': ['default_code', 'virtual_available']}
         )
-
         if product_data:
             sku = product_data[0].get('default_code', 'N/A')
             stock = product_data[0].get('virtual_available', 0.0)
-
             productos_actualizados.append({
                 'default_code': sku,
                 'virtual_available': stock
             })
+
+    for line in sale_lines:
+        product_id = line['product_id'][0]
+        agregar_producto(product_id)
+
+        # Verificar si el producto es un kit (tipo phantom o tiene BoM)
+        boms = models.execute_kw(
+            db, uid, password,
+            'mrp.bom', 'search_read',
+            [[['product_id', '=', product_id]]],
+            {'fields': ['id', 'type']}
+        )
+
+        for bom in boms:
+            if bom['type'] in ['phantom', 'normal']:  # 'phantom' suele usarse para kits
+                bom_id = bom['id']
+                bom_lines = models.execute_kw(
+                    db, uid, password,
+                    'mrp.bom.line', 'search_read',
+                    [[['bom_id', '=', bom_id]]],
+                    {'fields': ['product_id']}
+                )
+                for bom_line in bom_lines:
+                    componente_id = bom_line['product_id'][0]
+                    agregar_producto(componente_id)
 
     return productos_actualizados
 
