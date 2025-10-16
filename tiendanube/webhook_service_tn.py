@@ -9,6 +9,7 @@ ACCESS_TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") + "/webhook"
 
+#Funcion que solamente se debe ejecutar para registrar Webhooks en la tienda
 def registrar_webhook(webhookName):
     url = f"https://api.tiendanube.com/v1/{STORE_ID}/webhooks"
     headers = {

@@ -1,10 +1,15 @@
+#Esta va a ser la función principal que maneje los webhooks y actúe en consecuencia
 from flask import Flask, request, abort
 import os
 import hmac
 import hashlib
+from odoo.connect_odoo import connect_odoo
 from dotenv import load_dotenv
 
 load_dotenv()
+models, db, uid, password = connect_odoo()
+if not uid:
+    exit()
 
 app = Flask(__name__)
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")

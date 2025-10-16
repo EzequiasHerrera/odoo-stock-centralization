@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from productos import buscar_producto_por_sku
-from tiendanube.productos_service import actualizar_stock_segun_sku;
+from tiendanube.products_service_tn import actualizar_stock_segun_sku;
 
 load_dotenv()
 
