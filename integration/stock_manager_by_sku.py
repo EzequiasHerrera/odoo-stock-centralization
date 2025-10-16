@@ -33,7 +33,6 @@ SKU = "Test-ProB-Blan-S"
 # Esta funcion vamos a cambiarla para que reciba el SKU en cuestion, lo busque en Odoo, tome el stock y lo actualice en TN
 def update_stock_on_tn_based_on_odoo(sku):
     odoo_product = buscar_producto_por_sku(models, db, uid, password, sku)
-#    print(f"Stock virtual de Odoo para {odoo_product["name"]}: {odoo_product["stock_virtual"]}")
     print(f"Stock virtual de Odoo para {odoo_product['name']}: {odoo_product['stock_virtual']}")
     
     if odoo_product:

@@ -13,12 +13,10 @@ def connect_odoo():
     class SafeTransport(xmlrpc.client.SafeTransport):
         def __init__(self, use_datetime=False):
             super().__init__(use_datetime=use_datetime)
-
     transport = SafeTransport()
-
     common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common", transport=transport)
+    
     uid = common.authenticate(db, username, password, {})
-
     if not uid:
         print("❌ Error al conectar. Verificá los datos.")
         return None, None, None, None

@@ -1,38 +1,34 @@
-# Función auxiliar para crear cliente si no existe
-def crear_cliente_si_no_existe(models, db, uid, password, documento):
-    # Buscar cliente por Documento exacto
-    partner_ids = models.execute_kw(
+#Separamos la lógica, se obtiene el cliente por documento y si no se encuentra se ejecuta la funcion crear_cliente
+def obtener_id_cliente_por_documento(models, db, uid, password, documento, nombre=None, email=None):
+    #Obtengo ID de 
+    partner_id = models.execute_kw(
         db, uid, password,
         'res.partner', 'search',
         [[['vat', '=', documento]]],
         {'limit': 1}
     )
 
-    # Buscar cliente por nombre exacto
-#    partner_ids = models.execute_kw(
-#        db, uid, password,
-#        'res.partner', 'search',
-#        [[['name', '=', nombre]]],
-#        {'limit': 1}
-#    )
+    if partner_id:
+        return partner_id[0]
 
-    # Si no existe, crear el cliente
-    if not partner_ids:
-        print("⚠️ Cliente no encontrado. Vamos a crearlo.")
+    if not nombre or not email:
+        print("⚠️ Cliente no encontrado y faltan datos para crearlo.")
+        #Aquí se adaptaría con datos de TN
         nombre = input("📧 Ingresá el Nombre del cliente: ")
         email = input("📧 Ingresá el email del cliente: ")
-        documento = input("🪪 Ingresá el número de documento (DNI/CUIT): ")
 
-        nuevo_cliente_id = models.execute_kw(
-            db, uid, password,
-            'res.partner', 'create',
-            [{
-                'name': nombre,
-                'email': email,
-                'vat': documento
-            }]
-        )
-        print(f"✅ Cliente creado con ID: {nuevo_cliente_id}")
-        return nuevo_cliente_id
+    nuevo_id = crear_cliente(models, db, uid, password, nombre, email, documento)
+    print(f"✅ Cliente creado con ID: {nuevo_id}")
+    return nuevo_id
 
-    return partner_ids[0]
+def crear_cliente(models, db, uid, password, nombre, email, documento):
+    nuevo_cliente_id = models.execute_kw(
+        db, uid, password,
+        'res.partner', 'create',
+        [{
+            'name': nombre,
+            'email': email,
+            'vat': documento
+        }]
+    )
+    return nuevo_cliente_id
