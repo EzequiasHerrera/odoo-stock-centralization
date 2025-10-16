@@ -1,6 +1,7 @@
 #Adaptamos las funciones para que no necesiten inputs sino que se puedan invocar con parametros y sean funcionales
 from clients_service_odoo import obtener_id_cliente_por_documento
 
+#-----------------ORDENES DE VENTA----------------------------------
 #CREAR una orden de venta con tres productos a un cliente segun DOCUMENTO
 def crear_orden_de_venta(models, db, uid, password, partner_id, fecha):
     order_id = models.execute_kw(
@@ -68,6 +69,37 @@ def consultar_orden_de_venta(models, db, uid, password, orden):
         print("Descripción:", line['name'])
         print("-----")
 
+#-----------------PRODUCTOS DE ORDEN DE VENTA----------------------------------
+def cargar_producto_a_orden_de_venta(models, db, uid, password, order_id, sku, cantidad, precio_unitario):
+    # Buscar el producto por SKU
+    product_ids = models.execute_kw(
+        db, uid, password,
+        'product.product', 'search',
+        [[['default_code', '=', sku]]],
+        {'limit': 1}
+    )
+
+    if not product_ids:
+        print(f"❌ Producto con SKU '{sku}' no encontrado.")
+        return None
+
+    product_id = product_ids[0]
+
+    # Crear línea de venta
+    sale_line_id = models.execute_kw(
+        db, uid, password,
+        'sale.order.line', 'create',
+        [{
+            'order_id': order_id,
+            'product_id': product_id,
+            'product_uom_qty': cantidad,
+            'price_unit': precio_unitario,
+            'name': f"Producto - SKU {sku}",
+        }]
+    )
+
+    print(f"✅ Producto '{sku}' agregado a la orden {order_id} con línea ID: {sale_line_id}")
+    return sale_line_id
 #Obtener SKUs y STOCK usando NOMBRE de orden de venta
 def obtener_skus_y_stock(models, db, uid, password, nombre_orden):
     # Buscar la orden de venta por nombre
