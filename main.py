@@ -46,7 +46,8 @@ while True:
     opcion = input("👉 Ingresá el número de opción (1, 2, 3, 4 o 9): ")
 
     if opcion == "1":
-        buscar_producto_por_sku(models, db, uid, password)
+        sku = input("SKU: ")
+        buscar_producto_por_sku(models, db, uid, password, sku)
     elif opcion == "2":
         consultar_orden_de_venta(models, db, uid, password)
     elif opcion == "3":
