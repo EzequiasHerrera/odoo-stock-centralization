@@ -34,15 +34,13 @@ def webhook():
     raw_data = request.get_data()
     if not verify_signature(raw_data, hmac_header):
         abort(401, "Firma inválida")
-
+    # print("✅ Webhook recibido:", request.json)
     # {'store_id': 6384636, 'event': 'order/paid', 'id': 1812657530}
-    data = request.json
-    order_id = data.get("id")
 
-    print("✅ Webhook recibido:", request.json)
-    print(f"order_id: {order_id}")
-    order = get_order_by_id(order_id)
-    print(f"{extract_order_data(order)}")
+    data = request.json  # Transformo la respuesta HTTP en JSON
+    order_id = data.get("id")  # Extraigo el id de la orden
+    order = get_order_by_id(order_id)  # Utilizo el id para obtener la orden COMPLETA
+    print(f"{extract_order_data(order)}")  # Extraigo los datos RELEVANTES de la orden
     return "OK", 200
 
 
