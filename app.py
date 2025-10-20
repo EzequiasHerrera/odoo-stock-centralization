@@ -7,6 +7,7 @@ from odoo.connect_odoo import connect_odoo
 from dotenv import load_dotenv
 from tiendanube.orders_service_tn import extract_order_data
 from tiendanube.orders_service_tn import get_order_by_id
+from odoo.clients_service_odoo import get_client_id_by_dni
 
 load_dotenv()
 
@@ -38,9 +39,14 @@ def webhook():
     # {'store_id': 6384636, 'event': 'order/paid', 'id': 1812657530}
 
     data = request.json  # Transformo la respuesta HTTP en JSON
+
+    # TIENDA NUBE
     order_id = data.get("id")  # Extraigo el id de la orden
     order = get_order_by_id(order_id)  # Utilizo el id para obtener la orden COMPLETA
-    print(f"{extract_order_data(order)}")  # Extraigo los datos RELEVANTES de la orden
+    order_data = extract_order_data(order)  # Extraigo los datos RELEVANTES de la orden
+
+    # ODOO
+    client_id_odoo = get_client_id_by_dni(order_data.get('client_data', {}).get('name'));
     return "OK", 200
 
 

@@ -1,5 +1,5 @@
 #Adaptamos las funciones para que no necesiten inputs sino que se puedan invocar con parametros y sean funcionales
-from clients_service_odoo import obtener_id_cliente_por_documento
+from clients_service_odoo import get_client_id_by_dni
 
 #-----------------ORDENES DE VENTA----------------------------------
 #CREAR una orden de venta con tres productos a un cliente segun DOCUMENTO

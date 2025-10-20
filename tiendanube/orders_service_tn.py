@@ -4,13 +4,14 @@ import requests;
 # OBTENGO DATOS DE TN
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+TIENDANUBE_URL = os.getenv("TIENDANUBE_URL")
 
 def extract_order_data(order_data):
     # Datos del Cliente
     client = order_data.get('customer', {})
     client_data = {
         'id': client.get('id'),
-        'nombre': client.get('name'),
+        'name': client.get('name'),
         'phone': client.get('phone'),
         'dni': client.get('identification'),
         'email': client.get('email'),
@@ -41,13 +42,13 @@ def extract_order_data(order_data):
     
     # Retornar objeto unificado
     return {
-        'datos_cliente': client_data,
-        'datos_envio': shipping_data,
-        'detalles_venta': products
+        'client_data': client_data,
+        'shipping_data': shipping_data,
+        'products_data': products
     }
 
 def get_order_by_id(order_id):
-    url = f"https://api.tiendanube.com/v1/{STORE_ID}/orders/{order_id}"
+    url = f"{TIENDANUBE_URL}/{STORE_ID}/orders/{order_id}"
     headers = {
         "Authentication": f"bearer {TOKEN}",
         "Content-Type": "application/json"

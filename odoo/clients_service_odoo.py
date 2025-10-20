@@ -1,5 +1,5 @@
 #Separamos la lógica, se obtiene el cliente por documento y si no se encuentra se ejecuta la funcion crear_cliente
-def obtener_id_cliente_por_documento(models, db, uid, password, documento, nombre=None, email=None):
+def get_client_id_by_dni(models, db, uid, password, documento, nombre=None, email=None):
     #Obtengo ID de 
     partner_id = models.execute_kw(
         db, uid, password,
