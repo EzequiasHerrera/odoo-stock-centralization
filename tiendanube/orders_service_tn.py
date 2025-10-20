@@ -1,6 +1,13 @@
-def extract_order_data(orden):
+import os;
+import requests;
+
+# OBTENGO DATOS DE TN
+STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
+TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+
+def extract_order_data(order_data):
     # Datos del Cliente
-    client = orden.get('customer', {})
+    client = order_data.get('customer', {})
     client_data = {
         'id': client.get('id'),
         'nombre': client.get('name'),
@@ -10,7 +17,7 @@ def extract_order_data(orden):
     }
     
     # Datos del Envío
-    shipping_info = orden.get('shipping_address', {})
+    shipping_info = order_data.get('shipping_address', {})
     shipping_data = {
         'address': shipping_info.get('address'),
         'province': shipping_info.get('province'),
@@ -23,7 +30,7 @@ def extract_order_data(orden):
     
     # Detalles de la Venta
     products = []
-    for prod in orden.get('products', []):
+    for prod in order_data.get('products', []):
         products.append({
             'product_id': prod.get('product_id'),
             'name': prod.get('name_without_variants'),
@@ -38,3 +45,18 @@ def extract_order_data(orden):
         'datos_envio': shipping_data,
         'detalles_venta': products
     }
+
+def get_order_by_id(order_id):
+    url = f"https://api.tiendanube.com/v1/{STORE_ID}/orders/{order_id}"
+    headers = {
+        "Authentication": f"bearer {TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"❌ Error al obtener la orden {order_id}: {response.status_code} - {response.text}")
+        return None

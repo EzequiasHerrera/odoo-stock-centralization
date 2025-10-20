@@ -6,14 +6,21 @@ import hashlib
 from odoo.connect_odoo import connect_odoo
 from dotenv import load_dotenv
 from tiendanube.orders_service_tn import extract_order_data
+from tiendanube.orders_service_tn import get_order_by_id
 
 load_dotenv()
+
+# CONECTO CON ODOO
 models, db, uid, password = connect_odoo()
 if not uid:
     exit()
 
-app = Flask(__name__)
+# OBTENGO DATOS DE TN
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")
+STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
+TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+
+app = Flask(__name__)
 
 
 def verify_signature(data, hmac_header):
@@ -27,13 +34,15 @@ def webhook():
     raw_data = request.get_data()
     if not verify_signature(raw_data, hmac_header):
         abort(401, "Firma inválida")
-    
+
     # {'store_id': 6384636, 'event': 'order/paid', 'id': 1812657530}
     data = request.json
-    order_id = data.get('id')
+    order_id = data.get("id")
 
     print("✅ Webhook recibido:", request.json)
-    print(f"{extract_order_data(order_id)}")
+    print(f"order_id: {order_id}")
+    order = get_order_by_id(order_id)
+    print(f"{extract_order_data(order)}")
     return "OK", 200
 
 
