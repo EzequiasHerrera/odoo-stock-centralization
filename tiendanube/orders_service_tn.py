@@ -1,5 +1,8 @@
 import os;
 import requests;
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # OBTENGO DATOS DE TN
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")

@@ -28,7 +28,7 @@ def verify_signature(data, hmac_header):
     digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest, hmac_header)
 
-
+"""
 @app.route("/webhook", methods=["POST"])
 def webhook():
     hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
@@ -41,15 +41,35 @@ def webhook():
     data = request.json  # Transformo la respuesta HTTP en JSON
 
     # TIENDA NUBE
-    order_id = data.get("id")  # Extraigo el id de la orden
+    # order_id = data.get("id")  # Extraigo el id de la orden
+    order_id = "1812732935"  # ID Testing
     order = get_order_by_id(order_id)  # Utilizo el id para obtener la orden COMPLETA
     order_data = extract_order_data(order)  # Extraigo los datos RELEVANTES de la orden
 
+    print(f"{order_data}")
     # ODOO
-    client_id_odoo = get_client_id_by_dni(order_data.get('client_data', {}).get('name'));
+    # client_id_odoo = get_client_id_by_dni(order_data.get('client_data', {}).get('name'));
     return "OK", 200
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+    webhook();
+
+"""
+#----------------------------------------------------------TESTING ----------------------------------------------------------
+# 🔁 Lógica reutilizable
+def process_order(order_id):
+    order = get_order_by_id(order_id)
+    if not order:
+        print(f"❌ No se pudo obtener la orden {order_id}")
+        return None
+
+    order_data = extract_order_data(order)
+    print("✅ Datos extraídos:", order_data)
+    return order_data
+
+# 🧪 Testing manual sin Flask
+if __name__ == "__main__":
+    TEST_ORDER_ID = "1812732935"
+    process_order(TEST_ORDER_ID)
