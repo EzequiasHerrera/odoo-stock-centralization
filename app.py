@@ -3,18 +3,12 @@ from flask import Flask, request, abort
 import os
 import hmac
 import hashlib
-from odoo.connect_odoo import connect_odoo
 from dotenv import load_dotenv
 from tiendanube.orders_service_tn import extract_order_data
 from tiendanube.orders_service_tn import get_order_by_id
 from odoo.clients_service_odoo import get_client_id_by_dni
 
 load_dotenv()
-
-# CONECTO CON ODOO
-models, db, uid, password = connect_odoo()
-if not uid:
-    exit()
 
 # OBTENGO DATOS DE TN
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")
@@ -70,7 +64,12 @@ def webhook_testing():
     order_data = extract_order_data(order)
 
     # ODOO
-    client_id_odoo = get_client_id_by_dni(order_data.get('client_data', {}).get('name'));
+    client_dni = order_data.get('client_data', {}).get('dni');
+    client_name = order_data.get('client_data', {}).get('name');
+    client_email = order_data.get('client_data', {}).get('email');
+    
+    client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email);
+    print(f"{client_id_odoo}");
 
 # 🧪 Testing manual sin Flask
 if __name__ == "__main__":
