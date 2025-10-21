@@ -3,7 +3,7 @@ import xmlrpc.client
 from dotenv import load_dotenv
 from clientes import crear_cliente_si_no_existe
 from productos import buscar_producto_por_sku
-from ventas import consultar_orden_de_venta, crear_orden_de_venta, obtener_skus_y_stock, listar_boms_con_sku_y_componentes, buscar_kits_que_contienen_componente
+from ventas import consultar_orden_de_venta, crear_orden_de_venta, obtener_skus_y_stock, listar_boms_con_sku_y_componentes, buscar_kits_que_contienen_componente, buscar_kits_afectados_por_componentes
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
@@ -43,6 +43,7 @@ while True:
     print("4️⃣ Obtener SKUs y stock desde una orden de venta")
     print("5️⃣ Mostrar Listas de Materiales de kits")
     print("6️⃣ Buscar kits que contienen un SKU como componente")
+    print("7️⃣ Buscar SKUs afectados por una venta")
     print("9️⃣ Salir del programa")
 
     opcion = input("👉 Ingresá el número de opción: ")
@@ -93,6 +94,33 @@ while True:
         print("\n📋 Kits que contienen el SKU como componente:")
         for sku in kits:
             print(f"   - {sku}")        
+    elif opcion == "7":
+        nombre_orden = input("🧾 Ingresá el nombre de la orden de venta (ej. S00003): ")
+        productos_afectados = obtener_skus_y_stock(models, db, uid, password, nombre_orden)
+        skus_componentes = [p["default_code"] for p in productos_afectados]
+
+        kits_afectados = buscar_kits_afectados_por_componentes(models, db, uid, password, skus_componentes)
+
+        # Unificar ambas listas
+        todos_los_skus = productos_afectados + kits_afectados
+
+        # Deduplicar por SKU
+        skus_unicos = {}
+        for item in todos_los_skus:
+            sku = item.get("default_code", "N/A")
+            # Si el SKU ya está en el diccionario, lo ignoramos
+            if sku not in skus_unicos:
+                skus_unicos[sku] = item
+
+        # Convertir de nuevo a lista
+        lista_final_sin_duplicados = list(skus_unicos.values())
+
+        print("\n📦 Lista final de SKUs a actualizar en TiendaNube:")
+        for producto in lista_final_sin_duplicados:
+            sku = producto.get("default_code", "N/A")
+            stock = producto.get("virtual_available", 0.0)
+            print(f"   ➤ SKU: {sku} | Stock virtual: {stock}")
+
 
     elif opcion == "9":
         print("👋 ¡Hasta la próxima!")

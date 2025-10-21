@@ -370,3 +370,101 @@ def buscar_kits_que_contienen_componente(models, db, uid, password, sku_componen
 
     print(f"\n✅ Total de kits que contienen el SKU '{sku_componente}': {len(kits_encontrados)}")
     return kits_encontrados
+
+
+def buscar_kits_afectados_por_componentes(models, db, uid, password, lista_skus_componentes):
+    kits_actualizados = []
+
+    for sku_componente in lista_skus_componentes:
+        print(f"🔍 Buscando kits que contienen el componente '{sku_componente}'...")
+
+        # Buscar el producto por SKU
+        producto = models.execute_kw(
+            db,
+            uid,
+            password,
+            "product.product",
+            "search_read",
+            [[["default_code", "=", sku_componente]]],
+            {"fields": ["id"], "limit": 1},
+        )
+
+        if not producto:
+            print(f"❌ No se encontró el producto con SKU '{sku_componente}'.")
+            continue
+
+        componente_id = producto[0]["id"]
+
+        # Buscar todas las BoM
+        todas_las_boms = models.execute_kw(
+            db,
+            uid,
+            password,
+            "mrp.bom",
+            "search_read",
+            [[]],
+            {"fields": ["id", "product_id", "product_tmpl_id", "type"]},
+        )
+
+        for bom in todas_las_boms:
+            bom_id = bom["id"]
+            bom_type = bom["type"]
+            product_ref = bom.get("product_id")
+            tmpl_ref = bom.get("product_tmpl_id")
+
+            # Leer líneas de componentes
+            bom_lines = models.execute_kw(
+                db,
+                uid,
+                password,
+                "mrp.bom.line",
+                "search_read",
+                [[["bom_id", "=", bom_id]]],
+                {"fields": ["product_id"]},
+            )
+
+            contiene_componente = any(
+                line["product_id"][0] == componente_id for line in bom_lines
+            )
+
+            if contiene_componente:
+                # Obtener ID del kit
+                if product_ref:
+                    kit_id = product_ref[0]
+                elif tmpl_ref:
+                    tmpl_id = tmpl_ref[0]
+                    variant_data = models.execute_kw(
+                        db,
+                        uid,
+                        password,
+                        "product.product",
+                        "search_read",
+                        [[["product_tmpl_id", "=", tmpl_id]]],
+                        {"fields": ["id"], "limit": 1},
+                    )
+                    if not variant_data:
+                        continue
+                    kit_id = variant_data[0]["id"]
+                else:
+                    continue
+
+                # Leer datos del kit
+                kit_data = models.execute_kw(
+                    db,
+                    uid,
+                    password,
+                    "product.product",
+                    "read",
+                    [kit_id],
+                    {"fields": ["default_code", "virtual_available"]},
+                )
+
+                if kit_data:
+                    kits_actualizados.append(
+                        {
+                            "default_code": kit_data[0].get("default_code", "N/A"),
+                            "virtual_available": kit_data[0].get("virtual_available", 0.0),
+                        }
+                    )
+
+    return kits_actualizados
