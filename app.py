@@ -4,9 +4,14 @@ import os
 import hmac
 import hashlib
 from dotenv import load_dotenv
-from tiendanube.orders_service_tn import extract_order_data
-from tiendanube.orders_service_tn import get_order_by_id
+from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
+from datetime import datetime
 from odoo.clients_service_odoo import get_client_id_by_dni
+from odoo.orders_service_odoo import (
+    create_sales_order,
+    confirm_sales_order,
+    cargar_producto_a_orden_de_venta,
+)
 
 load_dotenv()
 
@@ -21,6 +26,7 @@ app = Flask(__name__)
 def verify_signature(data, hmac_header):
     digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest, hmac_header)
+
 
 """
 @app.route("/webhook", methods=["POST"])
@@ -51,7 +57,9 @@ if __name__ == "__main__":
     webhook();
 
 """
-#----------------------------------------------------------TESTING ----------------------------------------------------------
+
+
+# ----------------------------------------------------------TESTING ----------------------------------------------------------
 # 🔁 Lógica reutilizable
 def webhook_testing():
     # TIENDA NUBE
@@ -64,13 +72,22 @@ def webhook_testing():
     order_data = extract_order_data(order)
 
     # ODOO
-    client_dni = order_data.get('client_data', {}).get('dni');
-    client_name = order_data.get('client_data', {}).get('name');
-    client_email = order_data.get('client_data', {}).get('email');
-    
-    client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email);
-    print(f"{client_id_odoo}");
+    client_dni = order_data.get("client_data", {}).get("dni")
+    client_name = order_data.get("client_data", {}).get("name")
+    client_email = order_data.get("client_data", {}).get("email")
 
+    client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
+    date = datetime.now()  # Deberíamos traer date de los datos de orden de compra
+    order_sale_id_odoo = create_sales_order(client_id_odoo, date)
+
+    # Este bloque de carga deberíamos modularizarlo y colocarlo por separado
+    for producto in order_data.get("products_data", []):
+        sku = producto.get("sku")
+        quantity = int(producto.get("quantity", 0))
+        price = float(producto["price"]) if producto.get("price") else 0.0
+        
+        cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
+    confirm_sales_order(order_sale_id_odoo);
 # 🧪 Testing manual sin Flask
 if __name__ == "__main__":
     webhook_testing()
