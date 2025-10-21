@@ -59,17 +59,19 @@ if __name__ == "__main__":
 """
 #----------------------------------------------------------TESTING ----------------------------------------------------------
 # 🔁 Lógica reutilizable
-def process_order(order_id):
+def webhook_testing():
+    # TIENDA NUBE
+    order_id = "1812732935"
     order = get_order_by_id(order_id)
     if not order:
         print(f"❌ No se pudo obtener la orden {order_id}")
         return None
 
     order_data = extract_order_data(order)
-    print("✅ Datos extraídos:", order_data)
-    return order_data
+
+    # ODOO
+    client_id_odoo = get_client_id_by_dni(order_data.get('client_data', {}).get('name'));
 
 # 🧪 Testing manual sin Flask
 if __name__ == "__main__":
-    TEST_ORDER_ID = "1812732935"
-    process_order(TEST_ORDER_ID)
+    webhook_testing()
