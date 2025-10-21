@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from productos import buscar_producto_por_sku
-from tiendanube.products_service_tn import actualizar_stock_segun_sku;
+from tiendanube.products_service_tn import update_stock_by_sku;
 
 load_dotenv()
 
@@ -36,7 +36,7 @@ def update_stock_on_tn_based_on_odoo(sku):
     print(f"Stock virtual de Odoo para {odoo_product['name']}: {odoo_product['stock_virtual']}")
     
     if odoo_product:
-        actualizar_stock_segun_sku(sku, odoo_product["stock_virtual"]);
+        update_stock_by_sku(sku, odoo_product["stock_virtual"]);
     else:
         print("❌ Producto no encontrado.")
         

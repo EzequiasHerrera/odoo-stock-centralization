@@ -4,14 +4,22 @@ import os
 import hmac
 import hashlib
 from dotenv import load_dotenv
+
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
+from tiendanube.products_service_tn import update_stock_by_sku
+
 from datetime import datetime
+
+from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
 from odoo.orders_service_odoo import (
     create_sales_order,
     confirm_sales_order,
     cargar_producto_a_orden_de_venta,
+    get_order_name_by_id,
+    get_skus_and_stock_from_order
 )
+
 
 load_dotenv()
 
@@ -80,7 +88,6 @@ def webhook_testing():
     date = datetime.now()  # Deberíamos traer date de los datos de orden de compra
     order_sale_id_odoo = create_sales_order(client_id_odoo, date)
 
-    # Este bloque de carga deberíamos modularizarlo y colocarlo por separado
     for producto in order_data.get("products_data", []):
         sku = producto.get("sku")
         quantity = int(producto.get("quantity", 0))
@@ -88,6 +95,35 @@ def webhook_testing():
         
         cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
     confirm_sales_order(order_sale_id_odoo);
+    
+    # Nueva funcion para obtener nombre de orden según ID
+    order_name = get_order_name_by_id(order_sale_id_odoo)
+    
+    affected_products = get_skus_and_stock_from_order(order_name)
+    skus_componentes = [p["default_code"] for p in affected_products]
+    affected_kits = get_affected_kits_by_components(skus_componentes)
+
+    # Unificar ambas listas
+    final_sku_list = affected_products + affected_kits
+
+    # Deduplicar por SKU
+    skus_unicos = {}
+    
+    for item in final_sku_list:
+        sku = item.get("default_code", "N/A")
+        # Si el SKU ya está en el diccionario, lo ignoramos
+        if sku not in skus_unicos:
+            skus_unicos[sku] = item
+
+    # Convertir de nuevo a lista
+    lista_final_sin_duplicados = list(skus_unicos.values())
+
+    print("\n📦 Lista final de SKUs a actualizar en TiendaNube:")
+    for producto in lista_final_sin_duplicados:
+        sku = producto.get("default_code", "N/A")
+        stock = producto.get("virtual_available", 0.0)
+        update_stock_by_sku(sku, stock)
+    
 # 🧪 Testing manual sin Flask
 if __name__ == "__main__":
     webhook_testing()

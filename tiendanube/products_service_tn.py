@@ -10,7 +10,7 @@ STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 SKU = "Test-ProB-Blan-S"
 
-def buscar_sku_en_tienda_nube(sku):
+def get_product_by_sku_tn(sku):
     url = f"{API_URL}/{STORE_ID}/products?q={sku}"
 
     headers = {
@@ -52,8 +52,8 @@ def buscar_sku_en_tienda_nube(sku):
     print("❌ No se encontró ninguna variante con ese SKU exacto.")
     return None
 
-def actualizar_stock_segun_sku(sku, stock):
-    product = buscar_sku_en_tienda_nube(sku);
+def update_stock_by_sku(sku, stock):
+    product = get_product_by_sku_tn(sku);
     id_padre = product["id_padre"]
     id = product["id"]
     
