@@ -109,7 +109,7 @@ def webhook():
 
     # ✅ Devuelvo OK inmediatamente para evitar reintentos de TiendaNube
 #    threading.Thread(target=procesar_orden, args=(order_id,)).start()
-    print("ORDER ID: "order_id)
+    print("ORDER ID: {order_id}")
     print("✅ Envío 200 OK a TiendaNube en respuesta al webhook.")
     return "OK", 200
 
