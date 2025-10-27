@@ -4,6 +4,9 @@ import os
 import hmac
 import hashlib
 import threading  # 👈 Import necesario para ejecutar en segundo plano
+import logging
+from integration.idempotencia import verificar_idempotencia
+
 from dotenv import load_dotenv
 
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
@@ -37,58 +40,70 @@ def verify_signature(data, hmac_header):
 
 # 🔁 Función que procesa la orden en segundo plano
 def procesar_orden(order_id):
-    # TIENDA NUBE
-    order = get_order_by_id(order_id)  # Utilizo el id para obtener la orden COMPLETA
+    logging.info(f"🧵 Iniciando procesamiento de orden {order_id} en hilo secundario.")
 
-    if not order:
-        print(f"❌ No se pudo obtener la orden {order_id}")
+    # 🔁 Verificación de idempotencia
+    if not verificar_idempotencia(order_id):
+        logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
         return
 
-    order_data = extract_order_data(order)  # Extraigo los datos RELEVANTES de la orden
+    try:
+        # TIENDA NUBE
+        order = get_order_by_id(order_id)
+        if not order:
+            logging.error(f"❌ No se pudo obtener la orden {order_id}")
+            return
 
-    # ODOO
-    client_dni = order_data.get("client_data", {}).get("dni")
-    client_name = order_data.get("client_data", {}).get("name")
-    client_email = order_data.get("client_data", {}).get("email")
+        order_data = extract_order_data(order)
+        logging.info(f"📦 Datos extraídos de la orden {order_id}: {order_data}")
 
-    client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
-    date = datetime.now()  # Deberíamos traer date de los datos de orden de compra
-    order_sale_id_odoo = create_sales_order(client_id_odoo, date)
+        # ODOO
+        client_dni = order_data.get("client_data", {}).get("dni")
+        client_name = order_data.get("client_data", {}).get("name")
+        client_email = order_data.get("client_data", {}).get("email")
 
-    for producto in order_data.get("products_data", []):
-        sku = producto.get("sku")
-        quantity = int(producto.get("quantity", 0))
-        price = float(producto["price"]) if producto.get("price") else 0.0
-        
-        cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
+        client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
+        date = datetime.now()
+        order_sale_id_odoo = create_sales_order(client_id_odoo, date)
+        logging.info(f"🧾 Orden de venta creada en Odoo: {order_sale_id_odoo}")
 
-    confirm_sales_order(order_sale_id_odoo)
+        for producto in order_data.get("products_data", []):
+            sku = producto.get("sku")
+            quantity = int(producto.get("quantity", 0))
+            price = float(producto["price"]) if producto.get("price") else 0.0
+            cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
+            logging.info(f"➕ Producto agregado: SKU={sku}, cantidad={quantity}, precio={price}")
 
-    # Nueva función para obtener nombre de orden según ID
-    order_name = get_order_name_by_id(order_sale_id_odoo)
+        confirm_sales_order(order_sale_id_odoo)
+        logging.info(f"✅ Orden de venta confirmada en Odoo: {order_sale_id_odoo}")
 
-    affected_products = get_skus_and_stock_from_order(order_name)
-    skus_componentes = [p["default_code"] for p in affected_products]
-    affected_kits = get_affected_kits_by_components(skus_componentes)
+        order_name = get_order_name_by_id(order_sale_id_odoo)
+        affected_products = get_skus_and_stock_from_order(order_name)
+        skus_componentes = [p["default_code"] for p in affected_products]
+        affected_kits = get_affected_kits_by_components(skus_componentes)
 
-    # Unificar ambas listas
-    final_sku_list = affected_products + affected_kits
+        final_sku_list = affected_products + affected_kits
+        skus_unicos = {}
+        for item in final_sku_list:
+            sku = item.get("default_code", "N/A")
+            if sku not in skus_unicos:
+                skus_unicos[sku] = item
 
-    # Deduplicar por SKU
-    skus_unicos = {}
-    for item in final_sku_list:
-        sku = item.get("default_code", "N/A")
-        if sku not in skus_unicos:
-            skus_unicos[sku] = item
+        lista_final_sin_duplicados = list(skus_unicos.values())
+        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
-    lista_final_sin_duplicados = list(skus_unicos.values())
+        for producto in lista_final_sin_duplicados:
+            sku = producto.get("default_code", "N/A")
+            stock = producto.get("virtual_available", 0.0)
+            update_stock_by_sku(sku, stock)
+            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
 
-    print("\n📦 Lista final de SKUs a actualizar en TiendaNube:")
-    for producto in lista_final_sin_duplicados:
-        sku = producto.get("default_code", "N/A")
-        stock = producto.get("virtual_available", 0.0)
-        update_stock_by_sku(sku, stock)
+        logging.info(f"🎯 Orden {order_id} procesada exitosamente.")
 
+    except Exception as e:
+        logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
+
+#"""         AGREGAR COMENTARIO PARA FUNCIONAMIENTO NORMAL
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -108,76 +123,50 @@ def webhook():
         return "Falta ID", 400
 
     # ✅ Devuelvo OK inmediatamente para evitar reintentos de TiendaNube
-#    threading.Thread(target=procesar_orden, args=(order_id,)).start()
-    print("ORDER ID: {order_id}")
-    print("✅ Envío 200 OK a TiendaNube en respuesta al webhook.")
+    logging.info(f"📨 Webhook recibido con order_id={order_id}. Lanzando procesamiento en segundo plano.")
+    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
+    logging.info("✅ Envío 200 OK a TiendaNube en respuesta al webhook.")
     return "OK", 200
+
+# Configuración básica de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 # 🚀 Inicio del servidor Flask
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+#"""
 
-
+"""        ELIMINAR ESTE COMENTARIO PARA EJECUCIÓN NORMAL
 # ----------------------------------------------------------TESTING ----------------------------------------------------------
 # 🔁 Lógica reutilizable
-"""
-def webhook_testing():
-    # TIENDA NUBE
-    order_id = "1812732935"
-    order = get_order_by_id(order_id)
-    if not order:
-        print(f"❌ No se pudo obtener la orden {order_id}")
-        return None
-
-    order_data = extract_order_data(order)
-
-    # ODOO
-    client_dni = order_data.get("client_data", {}).get("dni")
-    client_name = order_data.get("client_data", {}).get("name")
-    client_email = order_data.get("client_data", {}).get("email")
-
-    client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
-    date = datetime.now()  # Deberíamos traer date de los datos de orden de compra
-    order_sale_id_odoo = create_sales_order(client_id_odoo, date)
-
-    for producto in order_data.get("products_data", []):
-        sku = producto.get("sku")
-        quantity = int(producto.get("quantity", 0))
-        price = float(producto["price"]) if producto.get("price") else 0.0
-        
-        cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
-    confirm_sales_order(order_sale_id_odoo);
-    
-    # Nueva funcion para obtener nombre de orden según ID
-    order_name = get_order_name_by_id(order_sale_id_odoo)
-    
-    affected_products = get_skus_and_stock_from_order(order_name)
-    skus_componentes = [p["default_code"] for p in affected_products]
-    affected_kits = get_affected_kits_by_components(skus_componentes)
-
-    # Unificar ambas listas
-    final_sku_list = affected_products + affected_kits
-
-    # Deduplicar por SKU
-    skus_unicos = {}
-    
-    for item in final_sku_list:
-        sku = item.get("default_code", "N/A")
-        # Si el SKU ya está en el diccionario, lo ignoramos
-        if sku not in skus_unicos:
-            skus_unicos[sku] = item
-
-    # Convertir de nuevo a lista
-    lista_final_sin_duplicados = list(skus_unicos.values())
-
-    print("\n📦 Lista final de SKUs a actualizar en TiendaNube:")
-    for producto in lista_final_sin_duplicados:
-        sku = producto.get("default_code", "N/A")
-        stock = producto.get("virtual_available", 0.0)
-        update_stock_by_sku(sku, stock)
-    
 # 🧪 Testing manual sin Flask
+
+def webhook_testing():
+    ordenes_de_prueba = [
+        "1816913106",
+        "1816914094",
+        "1816935101",
+    ]
+
+    logging.info("🧪 Iniciando test manual con órdenes de TiendaNube...")
+    threads = []
+
+    for order_id in ordenes_de_prueba:
+        logging.info(f"🧪 Lanzando procesamiento para orden {order_id}")
+        t = threading.Thread(target=procesar_orden, args=(order_id,))
+        t.start()
+        threads.append(t)
+
+    # Esperar a que todos los hilos terminen
+    for t in threads:
+        t.join()
+
 if __name__ == "__main__":
     webhook_testing()
+
 """
+# ELIMINAR ESTE COMENTARIO PARA EJECUCION NORMAL
