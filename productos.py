@@ -1,3 +1,5 @@
+from datetime import datetime
+
 def buscar_producto_por_sku(models, db, uid, password, sku):
     product_ids = models.execute_kw(
         db, uid, password,
@@ -79,3 +81,95 @@ def buscar_producto_por_sku(models, db, uid, password, sku):
                 })
 
     return resultado
+
+#   Consulta de AJUSTES DE INVENTARIO
+def buscar_ajustes_inventario(models, db, uid, password):
+    """
+    Consulta los registros de stock.quant modificados hoy y muestra SKU, cantidad, stock virtual y fecha/hora.
+    """
+    # Fecha actual en formato ISO (sin zona horaria)
+    hoy = datetime.today().strftime('%Y-%m-%dT00:00:00')
+
+    # Buscar quants modificados hoy
+    quants = models.execute_kw(db, uid, password,
+        'stock.quant', 'search_read',
+        [[['write_date', '>=', hoy]]],
+        {'fields': ['product_id', 'quantity', 'write_date'], 'limit': 100}
+    )
+
+    for q in quants:
+        product_id = q['product_id'][0] if q['product_id'] else None
+        product_name = q['product_id'][1] if q['product_id'] else 'Sin nombre'
+        cantidad = q['quantity']
+        fecha_hora = q['write_date']  # Ya incluye fecha y hora en formato ISO
+
+        # Consultar SKU y stock virtual desde product.product
+        if product_id:
+            producto = models.execute_kw(db, uid, password,
+                'product.product', 'read',
+                [product_id],
+                {'fields': ['default_code', 'virtual_available']}
+            )[0]
+
+            sku = producto.get('default_code', 'Sin SKU')
+            stock_virtual = producto.get('virtual_available', 'Desconocido')
+
+            print(f"Producto: {product_name}")
+            print(f"SKU: {sku}")
+            print(f"Cantidad física: {cantidad}")
+            print(f"Stock virtual: {stock_virtual}")
+            print(f"Última modificación: {fecha_hora}")
+            print("------")
+
+    return quants
+
+
+def actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad):
+    
+    """
+    Actualiza el stock de un producto en Odoo usando el modelo stock.quant.
+    """
+    # Buscar el producto por SKU
+    product_ids = models.execute_kw(db, uid, password,
+        'product.product', 'search',
+        [[['default_code', '=', sku]]], {'limit': 1})
+    
+    if not product_ids:
+        raise ValueError(f"No se encontró producto con SKU '{sku}'")
+
+    product_id = product_ids[0]
+
+    # Buscar ubicación interna
+    location_ids = models.execute_kw(db, uid, password,
+        'stock.location', 'search',
+        [[['usage', '=', 'internal']]], {'limit': 1})
+    
+    if not location_ids:
+        raise ValueError("No se encontró ubicación interna")
+
+    location_id = location_ids[0]
+
+    # Buscar el stock.quant correspondiente
+    quant_ids = models.execute_kw(db, uid, password,
+        'stock.quant', 'search',
+        [[
+            ['product_id', '=', product_id],
+            ['location_id', '=', location_id]
+        ]], {'limit': 1})
+
+    if quant_ids:
+        # Actualizar cantidad existente
+        models.execute_kw(db, uid, password,
+            'stock.quant', 'write',
+            [quant_ids, {'quantity': nueva_cantidad}])
+    else:
+        # Crear nuevo registro de stock.quant si no existe
+        models.execute_kw(db, uid, password,
+            'stock.quant', 'create',
+            [{
+                'product_id': product_id,
+                'location_id': location_id,
+                'quantity': nueva_cantidad
+            }])
+
+    return f"Stock actualizado para SKU '{sku}' a {nueva_cantidad} unidades."

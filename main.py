@@ -2,7 +2,7 @@ import os
 import xmlrpc.client
 from dotenv import load_dotenv
 from clientes import crear_cliente_si_no_existe
-from productos import buscar_producto_por_sku
+from productos import buscar_producto_por_sku, buscar_ajustes_inventario, actualizar_stock_odoo_por_sku
 from ventas import consultar_orden_de_venta, crear_orden_de_venta, obtener_skus_y_stock, listar_boms_con_sku_y_componentes, buscar_kits_que_contienen_componente, buscar_kits_afectados_por_componentes
 
 # Cargar variables de entorno desde el archivo .env
@@ -37,14 +37,17 @@ models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object", transport=transport
 # Bucle interactivo
 while True:
     print("\n🧪 ¿Qué querés testear?")
-    print("1️⃣ Buscar producto por SKU")
-    print("2️⃣ Consultar orden de venta por nombre")
-    print("3️⃣ Crear una orden de venta con tres productos")
-    print("4️⃣ Obtener SKUs y stock desde una orden de venta")
-    print("5️⃣ Mostrar Listas de Materiales de kits")
-    print("6️⃣ Buscar kits que contienen un SKU como componente")
-    print("7️⃣ Buscar SKUs afectados por una venta")
-    print("9️⃣ Salir del programa")
+    print("1️⃣  Buscar producto por SKU")
+    print("2️⃣  Consultar orden de venta por nombre")
+    print("3️⃣  Crear una orden de venta con tres productos")
+    print("4️⃣  Obtener SKUs y stock desde una orden de venta")
+    print("5️⃣  Mostrar Listas de Materiales de kits")
+    print("6️⃣  Buscar kits que contienen un SKU como componente")
+    print("7️⃣  Buscar SKUs afectados por una venta")
+    print("8️⃣  Buscar Cambios de Inventario")
+    print("9️⃣  Cargar stock en Odoo por SKU")
+    print("🔟  ")
+    print("S Salir del programa")
 
     opcion = input("👉 Ingresá el número de opción: ")
 
@@ -121,8 +124,14 @@ while True:
             stock = producto.get("virtual_available", 0.0)
             print(f"   ➤ SKU: {sku} | Stock virtual: {stock}")
 
-
+    elif opcion == "8":
+        inventarios = buscar_ajustes_inventario(models, db, uid, password)
     elif opcion == "9":
+        sku = input("SKU: ")
+        nueva_cantidad = input("NUEVA CANTIDAD: ")
+        actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad)
+
+    elif opcion == "S":
         print("👋 ¡Hasta la próxima!")
         break
     else:
