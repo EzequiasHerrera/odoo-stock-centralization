@@ -150,7 +150,12 @@ logging.basicConfig(
 )
 
 # 🧵 Lanzamos la tarea periódica en segundo plano - Ajuste de Inventario periódico
-threading.Thread(target=ajuste_inventario, daemon=True).start()
+#threading.Thread(target=ajuste_inventario, daemon=True).start()
+
+@app.before_first_request
+def iniciar_tarea_periodica():
+    threading.Thread(target=ajuste_inventario, daemon=True).start()
+    logging.info("🧵 Tarea periódica lanzada desde Flask (Render compatible)")
 
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local

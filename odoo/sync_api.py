@@ -38,10 +38,16 @@ def ajustes_inventario_pendientes():
             # Marcar como procesado en el momento que se toma
             record_id = record['id']
             try:
+#                models.execute_kw(db, uid, password,
+#                    'x_stock', 'write',
+#                    [[record_id]], {'x_studio_estado': 'Procesado'})
+
                 models.execute_kw(db, uid, password,
                     'x_stock', 'write',
-                    [[record_id]], {'x_studio_estado': 'Procesado'})
-                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
+                    [[record_id], {'active': False}])
+
+                logging.info(f"✅ Registro x_stock {record_id} archivado")
+#                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
             except Exception as e:
                 logging.exception(f"💥 Falló la escritura del estado en el registro {record_id}")
 

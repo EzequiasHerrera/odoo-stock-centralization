@@ -202,6 +202,7 @@ def buscar_sku_pendientes(models, db, uid, password):
                 models.execute_kw(db, uid, password,
                     'x_stock', 'write',
                     [[record_id], {'x_studio_estado': 'Procesado'}])
+
                 print(f"✅ Registro {record_id} marcado como 'Procesado'")
             except Exception as e:
                 print(f"💥 Error al marcar registro {record_id}: {e}")
