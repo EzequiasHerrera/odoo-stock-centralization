@@ -1,0 +1,71 @@
+from odoo.connect_odoo import connect_odoo
+from odoo.products_service_odoo import get_affected_kits_by_components
+from tiendanube.products_service_tn import update_stock_by_sku
+
+import logging
+
+
+def ajustes_inventario_pendientes():
+    models, db, uid, password = connect_odoo()
+    if not all([models, db, uid, password]):
+        logging.error("❌ No se pudo conectar a Odoo para obtener Ajustes de Inventario de Sync API")
+        return
+
+    try:
+        # Buscar registros con estado "Pendiente"
+        ids = models.execute_kw(db, uid, password,
+            'x_stock', 'search',
+            [[['x_studio_estado', '=', 'Pendiente']]])
+
+        if not ids:
+            logging.info("📭 No hay ajustes de inventario pendientes en x_stock.")
+            return
+
+        # Leer los SKUs
+        records = models.execute_kw(db, uid, password,
+            'x_stock', 'read',
+            [ids], {'fields': ['x_studio_sku']})
+
+        lista_skus = []
+
+        for record in records:
+            sku = record.get('x_studio_sku')
+            if not sku:
+                continue
+
+            lista_skus.append(sku)
+
+            # Marcar como procesado en el momento que se toma
+            record_id = record['id']
+            models.execute_kw(db, uid, password,
+                'x_stock', 'write',
+                [[record_id]], {'x_studio_estado': 'Procesado'})
+            logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
+
+        if not lista_skus:
+            logging.info("📭 No se encontraron SKUs válidos para procesar.")
+            return
+
+        logging.info(f"📦 SKUs pendientes detectados: {lista_skus}")
+
+        # Buscar kits afectados
+        kits_afectados = get_affected_kits_by_components(lista_skus)
+
+        final_sku_list = lista_skus + kits_afectados
+        skus_unicos = {}
+        for item in final_sku_list:
+            sku = item.get("default_code", "N/A")
+            if sku not in skus_unicos:
+                skus_unicos[sku] = item
+
+        lista_final_sin_duplicados = list(skus_unicos.values())
+        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
+
+        for producto in lista_final_sin_duplicados:
+            sku = producto.get("default_code", "N/A")
+            stock = producto.get("virtual_available", 0.0)
+            update_stock_by_sku(sku, stock)
+            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+
+    except Exception as e:
+        logging.exception("💥 Error actualizando stock por ajuste de inventario")

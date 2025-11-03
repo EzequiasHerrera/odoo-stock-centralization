@@ -18,6 +18,7 @@ from datetime import datetime
 
 from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
+from odoo.sync_api import ajustes_inventario_pendientes
 from odoo.orders_service_odoo import (
     create_sales_order,
     confirm_sales_order,
@@ -33,7 +34,7 @@ APP_SECRET = os.getenv("TIENDANUBE_SECRET")
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 
-app = Flask(__name__)
+app = Flask(__name__)       #Se define el EndPoint para funcionamiento en Render
 
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
@@ -106,14 +107,15 @@ def procesar_orden(order_id):
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
 def ajuste_inventario():
+    logging.info("🚀 Hilo de tarea periódica iniciado.")
     while True:
         try:
             logging.info("⏱ Ejecutando tarea periódica...")
-            # 🔁 Tu lógica aquí, por ejemplo:
-            # - Sincronizar stock
+            ajustes_inventario_pendientes()
+
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
-        time.sleep(30)  # Espera 5 minutos = 300
+        time.sleep(60)  # Espera 5 minutos = 300
 
 
 #"""         AGREGAR COMENTARIO PARA FUNCIONAMIENTO NORMAL
@@ -147,11 +149,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# 🚀 Inicio del servidor Flask
-if __name__ == "__main__":
-    # 🧵 Lanzamos la tarea periódica en segundo plano
-    threading.Thread(target=ajuste_inventario, daemon=True).start()
+# 🧵 Lanzamos la tarea periódica en segundo plano - Ajuste de Inventario periódico
+threading.Thread(target=ajuste_inventario, daemon=True).start()
 
+
+# 🚀 Inicio del servidor Flask - Funcionamiento local
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
