@@ -37,10 +37,13 @@ def ajustes_inventario_pendientes():
 
             # Marcar como procesado en el momento que se toma
             record_id = record['id']
-            models.execute_kw(db, uid, password,
-                'x_stock', 'write',
-                [[record_id]], {'x_studio_estado': 'Procesado'})
-            logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
+            try:
+                models.execute_kw(db, uid, password,
+                    'x_stock', 'write',
+                    [[record_id]], {'x_studio_estado': 'Procesado'})
+                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
+            except Exception as e:
+                logging.exception(f"💥 Falló la escritura del estado en el registro {record_id}")
 
         if not lista_skus:
             logging.info("📭 No se encontraron SKUs válidos para procesar.")
@@ -51,7 +54,11 @@ def ajustes_inventario_pendientes():
         # Buscar kits afectados
         kits_afectados = get_affected_kits_by_components(lista_skus)
 
-        final_sku_list = lista_skus + kits_afectados
+        # Convertir SKUs simples en dicts compatibles
+        componentes_dict = [{"default_code": sku, "virtual_available": None} for sku in lista_skus]
+
+        # Unificar listas y eliminar duplicados
+        final_sku_list = componentes_dict + kits_afectados
         skus_unicos = {}
         for item in final_sku_list:
             sku = item.get("default_code", "N/A")
@@ -61,6 +68,7 @@ def ajustes_inventario_pendientes():
         lista_final_sin_duplicados = list(skus_unicos.values())
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
+        # Actualizar stock en TiendaNube
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)

@@ -177,18 +177,34 @@ def actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad
 
 #   Consultar SKU Pendientes por Ajuste de inventario
 def buscar_sku_pendientes(models, db, uid, password):
-    # Buscar registros con estado "Pendiente"
-    ids = models.execute_kw(db, uid, password,
-        'x_stock', 'search',
-        [[['x_studio_estado', '=', 'Pendiente']]])
+    try:
+        # Buscar registros con estado "Pendiente"
+        ids = models.execute_kw(db, uid, password,
+            'x_stock', 'search',
+            [[['x_studio_estado', '=', 'Pendiente']]])
 
-    # Leer los SKUs
-    records = models.execute_kw(db, uid, password,
-        'x_stock', 'read',
-        [ids], {'fields': ['x_studio_sku']})
+        if not ids:
+            print("📭 No hay registros pendientes.")
+            return
 
-    # Extraer lista de SKUs
-    skus_pendientes = [r['x_studio_sku'] for r in records if r['x_studio_sku']]
+        # Leer los SKUs
+        records = models.execute_kw(db, uid, password,
+            'x_stock', 'read',
+            [ids], {'fields': ['x_studio_sku']})
 
-    print(skus_pendientes)
-    return
+        for record in records:
+            sku = record.get('x_studio_sku')
+            record_id = record.get('id')
+            print(f"🔍 SKU pendiente: {sku} (ID: {record_id})")
+
+            try:
+                # Intentar marcar como Procesado
+                models.execute_kw(db, uid, password,
+                    'x_stock', 'write',
+                    [[record_id], {'x_studio_estado': 'Procesado'}])
+                print(f"✅ Registro {record_id} marcado como 'Procesado'")
+            except Exception as e:
+                print(f"💥 Error al marcar registro {record_id}: {e}")
+
+    except Exception as e:
+        print(f"💥 Error general en buscar_sku_pendientes: {e}")
