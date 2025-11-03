@@ -5,6 +5,8 @@ import hmac
 import hashlib
 import threading  # 👈 Import necesario para ejecutar en segundo plano
 import logging
+import time
+
 from integration.idempotencia import verificar_idempotencia
 
 from dotenv import load_dotenv
@@ -103,6 +105,17 @@ def procesar_orden(order_id):
     except Exception as e:
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
+def ajuste_inventario():
+    while True:
+        try:
+            logging.info("⏱ Ejecutando tarea periódica...")
+            # 🔁 Tu lógica aquí, por ejemplo:
+            # - Sincronizar stock
+        except Exception as e:
+            logging.exception(f"💥 Error en tarea periódica: {str(e)}")
+        time.sleep(30)  # Espera 5 minutos = 300
+
+
 #"""         AGREGAR COMENTARIO PARA FUNCIONAMIENTO NORMAL
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
@@ -136,8 +149,12 @@ logging.basicConfig(
 
 # 🚀 Inicio del servidor Flask
 if __name__ == "__main__":
+    # 🧵 Lanzamos la tarea periódica en segundo plano
+    threading.Thread(target=ajuste_inventario, daemon=True).start()
+
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 #"""
 
 """        ELIMINAR ESTE COMENTARIO PARA EJECUCIÓN NORMAL

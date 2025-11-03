@@ -173,3 +173,22 @@ def actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad
             }])
 
     return f"Stock actualizado para SKU '{sku}' a {nueva_cantidad} unidades."
+
+
+#   Consultar SKU Pendientes por Ajuste de inventario
+def buscar_sku_pendientes(models, db, uid, password):
+    # Buscar registros con estado "Pendiente"
+    ids = models.execute_kw(db, uid, password,
+        'x_stock', 'search',
+        [[['x_studio_estado', '=', 'Pendiente']]])
+
+    # Leer los SKUs
+    records = models.execute_kw(db, uid, password,
+        'x_stock', 'read',
+        [ids], {'fields': ['x_studio_sku']})
+
+    # Extraer lista de SKUs
+    skus_pendientes = [r['x_studio_sku'] for r in records if r['x_studio_sku']]
+
+    print(skus_pendientes)
+    return

@@ -2,7 +2,7 @@ import os
 import xmlrpc.client
 from dotenv import load_dotenv
 from clientes import crear_cliente_si_no_existe
-from productos import buscar_producto_por_sku, buscar_ajustes_inventario, actualizar_stock_odoo_por_sku
+from productos import buscar_producto_por_sku, buscar_ajustes_inventario, actualizar_stock_odoo_por_sku, buscar_sku_pendientes
 from ventas import consultar_orden_de_venta, crear_orden_de_venta, obtener_skus_y_stock, listar_boms_con_sku_y_componentes, buscar_kits_que_contienen_componente, buscar_kits_afectados_por_componentes
 
 # Cargar variables de entorno desde el archivo .env
@@ -46,7 +46,7 @@ while True:
     print("7️⃣  Buscar SKUs afectados por una venta")
     print("8️⃣  Buscar Cambios de Inventario")
     print("9️⃣  Cargar stock en Odoo por SKU")
-    print("🔟  ")
+    print("🔟  Buscar SKU Pendientes en x_stock")
     print("S Salir del programa")
 
     opcion = input("👉 Ingresá el número de opción: ")
@@ -130,6 +130,8 @@ while True:
         sku = input("SKU: ")
         nueva_cantidad = input("NUEVA CANTIDAD: ")
         actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad)
+    elif opcion == "10":
+        buscar_sku_pendientes(models, db, uid, password)
 
     elif opcion == "S":
         print("👋 ¡Hasta la próxima!")
