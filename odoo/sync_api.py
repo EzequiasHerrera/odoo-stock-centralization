@@ -1,8 +1,26 @@
+import requests
+
 from odoo.connect_odoo import connect_odoo
 from odoo.products_service_odoo import get_affected_kits_by_components
 from tiendanube.products_service_tn import update_stock_by_sku
 
 import logging
+
+def activar_automatizacion_odoo(record_id):
+    url = "https://pintimates.odoo.com/web/hook/ba293fd7-ec47-435b-869f-93d2084222d5"
+    payload = {
+        "_model": "x_stock",
+        "_id": record_id
+    }
+
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logging.info(f"✅ Automatización ejecutada para registro {record_id}")
+        else:
+            logging.error(f"💥 Error al ejecutar webhook: {response.status_code} - {response.text}")
+    except Exception as e:
+        logging.exception(f"💥 Excepción al enviar webhook: {e}")
 
 
 def ajustes_inventario_pendientes():
@@ -38,16 +56,9 @@ def ajustes_inventario_pendientes():
             # Marcar como procesado en el momento que se toma
             record_id = record['id']
             try:
-#                models.execute_kw(db, uid, password,
-#                    'x_stock', 'write',
-#                    [[record_id]], {'x_studio_estado': 'Procesado'})
+                activar_automatizacion_odoo(record_id)
+                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
 
-                models.execute_kw(db, uid, password,
-                    'x_stock', 'write',
-                    [[record_id], {'active': False}])
-
-                logging.info(f"✅ Registro x_stock {record_id} archivado")
-#                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
             except Exception as e:
                 logging.exception(f"💥 Falló la escritura del estado en el registro {record_id}")
 
