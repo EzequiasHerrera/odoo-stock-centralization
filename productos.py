@@ -1,4 +1,6 @@
+import requests
 from datetime import datetime
+
 
 def buscar_producto_por_sku(models, db, uid, password, sku):
     product_ids = models.execute_kw(
@@ -199,9 +201,18 @@ def buscar_sku_pendientes(models, db, uid, password):
 
             try:
                 # Intentar marcar como Procesado
-                models.execute_kw(db, uid, password,
-                    'x_stock', 'write',
-                    [[record_id], {'x_studio_estado': 'Procesado'}])
+#                models.execute_kw(db, uid, password,
+#                    'x_stock', 'write',
+#                    [[record_id], {'x_studio_estado': 'Procesado'}])
+
+                url = "https://pintimates.odoo.com/web/hook/ba293fd7-ec47-435b-869f-93d2084222d5"
+                payload = {
+                    "_model": "x_stock",
+                    "_id": record_id
+                }
+                response = requests.post(url, json=payload)
+                print(f"Status: {response.status_code}")
+                print(f"Body: {response.text}")
 
                 print(f"✅ Registro {record_id} marcado como 'Procesado'")
             except Exception as e:

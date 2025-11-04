@@ -54,7 +54,7 @@ def ajustes_inventario_pendientes():
             lista_skus.append(sku)
 
             # Marcar como procesado en el momento que se toma
-            record_id = record['id']
+            record_id = record.get('id')
             try:
                 activar_automatizacion_odoo(record_id)
                 logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
