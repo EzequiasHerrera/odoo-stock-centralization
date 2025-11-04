@@ -31,49 +31,48 @@ def ajustes_inventario_pendientes():
 
     try:
         # Buscar registros con estado "Pendiente"
-        ids = models.execute_kw(db, uid, password,
+        registros_pendientes_ids = models.execute_kw(db, uid, password,
             'x_stock', 'search',
             [[['x_studio_estado', '=', 'Pendiente']]])
 
-        if not ids:
+        if not registros_pendientes_ids:
             logging.info("📭 No hay ajustes de inventario pendientes en x_stock.")
             return
 
         # Leer los SKUs
-        records = models.execute_kw(db, uid, password,
+        registros_pendientes_data = models.execute_kw(db, uid, password,
             'x_stock', 'read',
-            [ids], {'fields': ['x_studio_sku']})
+            [registros_pendientes_ids], {'fields': ['x_studio_sku']})
 
-        lista_skus = []
+        skus_detectados = []
 
-        for record in records:
-            sku = record.get('x_studio_sku')
+        for registro in registros_pendientes_data:
+            sku = registro.get('x_studio_sku')
             if not sku:
                 continue
 
-            lista_skus.append(sku)
+            skus_detectados.append(sku)
 
             # Marcar como procesado en el momento que se toma
-            record_id = record.get('id')
+            registro_id = registro.get('id')
             try:
-                activar_automatizacion_odoo(record_id)
-                logging.info(f"✅ Registro x_stock {record_id} marcado como 'Procesado' para SKU {sku}")
-
+                activar_automatizacion_odoo(registro_id)
+                logging.info(f"✅ Registro x_stock {registro_id} marcado como 'Procesado' para SKU {sku}")
             except Exception as e:
-                logging.exception(f"💥 Falló la escritura del estado en el registro {record_id}")
+                logging.exception(f"💥 Falló la escritura del estado en el registro {registro_id}")
 
-        if not lista_skus:
+        if not skus_detectados:
             logging.info("📭 No se encontraron SKUs válidos para procesar.")
             return
 
-        logging.info(f"📦 SKUs pendientes detectados: {lista_skus}")
+        logging.info(f"📦 SKUs pendientes detectados: {skus_detectados}")
 
         # Buscar kits afectados
-        kits_afectados = get_affected_kits_by_components(lista_skus)
+        kits_relacionados = get_affected_kits_by_components(skus_detectados)
 
         # Armar lista dicts de SKUs simples con su respectivo virtual_available
-        componentes_dict = []
-        for sku in lista_skus:
+        productos_actualizados = []
+        for sku in skus_detectados:
             try:
                 producto_ids = models.execute_kw(db, uid, password,
                     'product.product', 'search',
@@ -87,39 +86,39 @@ def ajustes_inventario_pendientes():
                     'product.product', 'read',
                     [producto_ids], {'fields': ['virtual_available']})
 
-                virtual_available = producto_data[0].get('virtual_available', 0.0)
-                componentes_dict.append({
+                stock_virtual = producto_data[0].get('virtual_available', 0.0)
+                productos_actualizados.append({
                     "default_code": sku,
-                    "virtual_available": virtual_available
+                    "virtual_available": stock_virtual
                 })
 
             except Exception as e:
                 logging.exception(f"💥 Error al consultar stock para SKU {sku}")
 
         # Unificar listas y eliminar duplicados
-        final_sku_list = componentes_dict + kits_afectados
-        skus_unicos = {}
-        for item in final_sku_list:
-            sku = item.get("default_code", "N/A")
-            if sku not in skus_unicos:
-                skus_unicos[sku] = item
+        conjunto_total = productos_actualizados + kits_relacionados
+        mapa_skus = {}
+        for producto in conjunto_total:
+            sku = producto.get("default_code", "N/A")
+            if sku not in mapa_skus:
+                mapa_skus[sku] = producto
 
-        lista_final_sin_duplicados = list(skus_unicos.values())
-        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
+        lista_final_actualizacion = list(mapa_skus.values())
+        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_actualizacion]}")
 
         # Actualizar stock en TiendaNube
-        for producto in lista_final_sin_duplicados:
+        for producto in lista_final_actualizacion:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
             update_stock_by_sku(sku, stock)
             logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
 
-        del lista_skus
-        del componentes_dict
-        del kits_afectados
-        del final_sku_list
-        del skus_unicos
-        del lista_final_sin_duplicados
+        del skus_detectados
+        del productos_actualizados
+        del kits_relacionados
+        del conjunto_total
+        del mapa_skus
+        del lista_final_actualizacion
 
     except Exception as e:
         logging.exception("💥 Error actualizando stock por ajuste de inventario")
