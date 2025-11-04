@@ -115,7 +115,7 @@ def ajuste_inventario():
 
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
-        time.sleep(60)  # Espera 5 minutos = 300
+        time.sleep(30)  # Espera 5 minutos = 300
 
 
 #"""         AGREGAR COMENTARIO PARA FUNCIONAMIENTO NORMAL

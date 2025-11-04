@@ -71,8 +71,30 @@ def ajustes_inventario_pendientes():
         # Buscar kits afectados
         kits_afectados = get_affected_kits_by_components(lista_skus)
 
-        # Convertir SKUs simples en dicts compatibles
-        componentes_dict = [{"default_code": sku, "virtual_available": None} for sku in lista_skus]
+        # Armar lista dicts de SKUs simples con su respectivo virtual_available
+        componentes_dict = []
+        for sku in lista_skus:
+            try:
+                producto_ids = models.execute_kw(db, uid, password,
+                    'product.product', 'search',
+                    [[['default_code', '=', sku]]])
+
+                if not producto_ids:
+                    logging.warning(f"⚠️ No se encontró producto para SKU {sku}")
+                    continue
+
+                producto_data = models.execute_kw(db, uid, password,
+                    'product.product', 'read',
+                    [producto_ids], {'fields': ['virtual_available']})
+
+                virtual_available = producto_data[0].get('virtual_available', 0.0)
+                componentes_dict.append({
+                    "default_code": sku,
+                    "virtual_available": virtual_available
+                })
+
+            except Exception as e:
+                logging.exception(f"💥 Error al consultar stock para SKU {sku}")
 
         # Unificar listas y eliminar duplicados
         final_sku_list = componentes_dict + kits_afectados
@@ -91,6 +113,13 @@ def ajustes_inventario_pendientes():
             stock = producto.get("virtual_available", 0.0)
             update_stock_by_sku(sku, stock)
             logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+
+        del lista_skus
+        del componentes_dict
+        del kits_afectados
+        del final_sku_list
+        del skus_unicos
+        del lista_final_sin_duplicados
 
     except Exception as e:
         logging.exception("💥 Error actualizando stock por ajuste de inventario")
