@@ -1,20 +1,19 @@
-# Esta va a ser la función principal que maneje los webhooks y actúe en consecuencia
+# app.py
 from flask import Flask, request, abort
 import os
 import hmac
 import hashlib
-import threading  # 👈 Import necesario para ejecutar en segundo plano
+import threading
 import logging
 import time
+import queue
+from dotenv import load_dotenv
+from datetime import datetime
 
 from integration.idempotencia import verificar_idempotencia
 
-from dotenv import load_dotenv
-
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
 from tiendanube.products_service_tn import update_stock_by_sku
-
-from datetime import datetime
 
 from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
@@ -27,40 +26,51 @@ from odoo.orders_service_odoo import (
     get_skus_and_stock_from_order
 )
 
+# 🔧 Carga de variables de entorno
 load_dotenv()
-
-# OBTENGO DATOS DE TN
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 
-app = Flask(__name__)       #Se define el EndPoint para funcionamiento en Render
+# 🌐 Inicialización de Flask
+app = Flask(__name__)
+
+# 🔁 Cola de tareas y worker dedicado
+cola_de_tareas = queue.Queue()
+
+def worker_de_tareas():
+    logging.info("🧵 Worker de tareas iniciado.")
+    while True:
+        tarea = cola_de_tareas.get()
+        try:
+            tarea()
+        except Exception as e:
+            logging.exception(f"💥 Error en tarea encolada: {str(e)}")
+        cola_de_tareas.task_done()
 
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
     digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest, hmac_header)
 
-# 🔁 Función que procesa la orden en segundo plano
+# 🔁 Procesamiento de orden en segundo plano
 def procesar_orden(order_id):
-    logging.info(f"🧵 Iniciando procesamiento de orden {order_id} en hilo secundario.")
+    logging.info(f"🧵 Iniciando procesamiento de orden {order_id}.")
 
-    # 🔁 Verificación de idempotencia
     if not verificar_idempotencia(order_id):
         logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
         return
 
     try:
-        # TIENDA NUBE
         order = get_order_by_id(order_id)
         if not order:
             logging.error(f"❌ No se pudo obtener la orden {order_id}")
             return
 
+
         order_data = extract_order_data(order)
         logging.info(f"📦 Datos extraídos de la orden {order_id}: {order_data}")
 
-        # ODOO
         client_dni = order_data.get("client_data", {}).get("dni")
         client_name = order_data.get("client_data", {}).get("name")
         client_email = order_data.get("client_data", {}).get("email")
@@ -106,86 +116,49 @@ def procesar_orden(order_id):
     except Exception as e:
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
+# 🔁 Tarea periódica de ajustes de inventario
 def ajuste_inventario():
     logging.info("🚀 Hilo de tarea periódica iniciado.")
     while True:
         try:
             logging.info("⏱ Ejecutando tarea periódica...")
             ajustes_inventario_pendientes()
-
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
-        time.sleep(30)  # Espera 5 minutos = 300
+        time.sleep(30)
 
-
-#"""         AGREGAR COMENTARIO PARA FUNCIONAMIENTO NORMAL
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
     hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
     raw_data = request.get_data()
 
-    # Verifico la firma del webhook
     if not verify_signature(raw_data, hmac_header):
         abort(401, "Firma inválida")
 
-    # Extraigo el ID de la orden desde el JSON recibido
     data = request.json
     order_id = data.get("id")
 
     if not order_id:
-        print("❌ No se encontró el ID de la orden en el webhook.")
+        logging.warning("❌ No se encontró el ID de la orden en el webhook.")
         return "Falta ID", 400
 
-    # ✅ Devuelvo OK inmediatamente para evitar reintentos de TiendaNube
-    logging.info(f"📨 Webhook recibido con order_id={order_id}. Lanzando procesamiento en segundo plano.")
-    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
+    logging.info(f"📨 Webhook recibido con order_id={order_id}. Encolando tarea.")
+    cola_de_tareas.put(lambda: procesar_orden(order_id))
     logging.info("✅ Envío 200 OK a TiendaNube en respuesta al webhook.")
     return "OK", 200
 
-# Configuración básica de logging
+# 🛠️ Configuración básica de logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# 🧵 Lanzamos la tarea periódica en segundo plano - Ajuste de Inventario periódico
+# 🧵 Lanzamos el worker de tareas y la tarea periódica
+threading.Thread(target=worker_de_tareas, daemon=True).start()
 threading.Thread(target=ajuste_inventario, daemon=True).start()
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-#"""
-
-"""        ELIMINAR ESTE COMENTARIO PARA EJECUCIÓN NORMAL
-# ----------------------------------------------------------TESTING ----------------------------------------------------------
-# 🔁 Lógica reutilizable
-# 🧪 Testing manual sin Flask
-
-def webhook_testing():
-    ordenes_de_prueba = [
-        "1816913106",
-        "1816914094",
-        "1816935101",
-    ]
-
-    logging.info("🧪 Iniciando test manual con órdenes de TiendaNube...")
-    threads = []
-
-    for order_id in ordenes_de_prueba:
-        logging.info(f"🧪 Lanzando procesamiento para orden {order_id}")
-        t = threading.Thread(target=procesar_orden, args=(order_id,))
-        t.start()
-        threads.append(t)
-
-    # Esperar a que todos los hilos terminen
-    for t in threads:
-        t.join()
-
-if __name__ == "__main__":
-    webhook_testing()
-
-"""
-# ELIMINAR ESTE COMENTARIO PARA EJECUCION NORMAL
