@@ -119,6 +119,19 @@ def ajustes_inventario_pendientes():
         del conjunto_total
         del mapa_skus
         del lista_final_actualizacion
+        logging.info(f"🔄 Ajuste de Inventario pendiente terminado correctamente!")
 
     except Exception as e:
         logging.exception("💥 Error actualizando stock por ajuste de inventario")
+
+
+def hay_skus_pendientes():
+    models, db, uid, password = connect_odoo()
+    if not all([models, db, uid, password]):
+        return False
+
+    ids = models.execute_kw(db, uid, password,
+        'x_stock', 'search',
+        [[['x_studio_estado', '=', 'Pendiente']]])
+
+    return bool(ids)
