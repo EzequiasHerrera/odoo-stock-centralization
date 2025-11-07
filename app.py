@@ -197,11 +197,14 @@ logging.basicConfig(
 
 
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
-threading.Thread(target=worker_manual, daemon=True).start()
+#threading.Thread(target=worker_manual, daemon=True).start()
 #threading.Thread(target=worker_de_tareas, daemon=True).start()
 #threading.Thread(target=ajuste_inventario, daemon=True).start()
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local
 if __name__ == "__main__":
+
+    threading.Thread(target=worker_manual, daemon=True).start()
+
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
