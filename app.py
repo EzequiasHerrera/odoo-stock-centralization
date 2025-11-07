@@ -36,19 +36,20 @@ TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 app = Flask(__name__)
 
 # 🔁 Cola de tareas y worker dedicado
-cola_de_tareas = queue.Queue()
 
-def worker_de_tareas():
-    logging.info("🧵 Worker de tareas iniciado.")
-    while True:
-        logging.info("🕓 Esperando tarea en la cola...")
-        tarea = cola_de_tareas.get()
-        logging.info("📥 Tarea recibida. Ejecutando...")
-        try:
-            tarea()
-        except Exception as e:
-            logging.exception(f"💥 Error en tarea encolada: {str(e)}")
-        cola_de_tareas.task_done()
+#cola_de_tareas = queue.Queue()
+
+#def worker_de_tareas():
+#    logging.info("🧵 Worker de tareas iniciado.")
+#    while True:
+#        logging.info("🕓 Esperando tarea en la cola...")
+#        tarea = cola_de_tareas.get()
+#        logging.info("📥 Tarea recibida. Ejecutando...")
+#        try:
+#            tarea()
+#        except Exception as e:
+#            logging.exception(f"💥 Error en tarea encolada: {str(e)}")
+#        cola_de_tareas.task_done()
 
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
@@ -127,7 +128,7 @@ def ajuste_inventario():
             ajustes_inventario_pendientes()
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
-        time.sleep(30)
+        time.sleep(60)
 
 def tarea_de_prueba(order_id):
     logging.info(f"🧪 Tarea de prueba ejecutada con order_id={order_id}")
@@ -152,8 +153,9 @@ def webhook():
         logging.warning("❌ No se encontró el ID de la orden en el webhook.")
         return "Falta ID", 400
 
+    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
 #    cola_de_tareas.put(lambda: procesar_orden(order_id))
-    cola_de_tareas.put(lambda: tarea_de_prueba(order_id))
+#    cola_de_tareas.put(lambda: tarea_de_prueba(order_id))
     return "", 200
 
 # 🛠️ Configuración básica de logging
@@ -162,16 +164,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-@app.before_first_request
-def iniciar_hilos():
-    logging.info("🚀 Lanzando hilos desde before_first_request")
-    threading.Thread(target=worker_de_tareas, daemon=True).start()
-    logging.info("🧵 Worker de tareas lanzado desde before_first_request.")
-
 
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
 #threading.Thread(target=worker_de_tareas, daemon=True).start()
-#threading.Thread(target=ajuste_inventario, daemon=True).start()
+threading.Thread(target=ajuste_inventario, daemon=True).start()
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local
 if __name__ == "__main__":
