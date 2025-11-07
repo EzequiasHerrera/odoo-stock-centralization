@@ -162,8 +162,15 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
+@app.before_first_request
+def iniciar_hilos():
+    logging.info("🚀 Lanzando hilos desde before_first_request")
+    threading.Thread(target=worker_de_tareas, daemon=True).start()
+    logging.info("🧵 Worker de tareas lanzado desde before_first_request.")
+
+
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
-threading.Thread(target=worker_de_tareas, daemon=True).start()
+#threading.Thread(target=worker_de_tareas, daemon=True).start()
 #threading.Thread(target=ajuste_inventario, daemon=True).start()
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local
