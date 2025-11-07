@@ -41,7 +41,9 @@ cola_de_tareas = queue.Queue()
 def worker_de_tareas():
     logging.info("🧵 Worker de tareas iniciado.")
     while True:
+        logging.info("🕓 Esperando tarea en la cola...")
         tarea = cola_de_tareas.get()
+        logging.info("📥 Tarea recibida. Ejecutando...")
         try:
             tarea()
         except Exception as e:
