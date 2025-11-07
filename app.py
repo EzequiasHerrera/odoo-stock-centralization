@@ -45,7 +45,7 @@ def worker_manual():
     global order_id_actual
     logging.info("🧵 Worker manual iniciado.")
     while True:
-        logging.info("---- Worker manual evaluando order_id...")
+        logging.info(f"---- Worker manual evaluando order_id.: {order_id_actual}")
         if order_id_actual:
             logging.info(f"🚀 Procesando orden {order_id_actual}")
             try:
@@ -179,7 +179,7 @@ def webhook():
         return "Falta ID", 400
 
     order_id_actual = order_id
-    logging.info("Order_id_actual = {order_id_actual}")
+    logging.info(f"Order_id_actual = {order_id_actual}")
 
 #    threading.Thread(target=tarea_de_prueba, args=(order_id,), daemon=True).start()
 #    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
