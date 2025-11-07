@@ -49,8 +49,8 @@ def worker_manual():
         if order_id_actual:
             logging.info(f"🚀 Procesando orden {order_id_actual}")
             try:
-                tarea_de_prueba(order_id_actual)
-#                procesar_orden(order_id_actual)
+#                tarea_de_prueba(order_id_actual)
+                procesar_orden(order_id_actual)
             except Exception as e:
                 logging.exception(f"💥 Error al procesar orden: {e}")
             order_id_actual = None
@@ -194,6 +194,7 @@ logging.basicConfig(
 
 
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
+threading.Thread(target=worker_manual, daemon=True).start()
 #threading.Thread(target=worker_de_tareas, daemon=True).start()
 #threading.Thread(target=ajuste_inventario, daemon=True).start()
 
