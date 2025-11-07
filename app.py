@@ -37,19 +37,20 @@ app = Flask(__name__)
 
 # 🔁 Cola de tareas y worker dedicado
 
-#cola_de_tareas = queue.Queue()
+cola_de_tareas = queue.Queue()
 
-#def worker_de_tareas():
-#    logging.info("🧵 Worker de tareas iniciado.")
-#    while True:
-#        logging.info("🕓 Esperando tarea en la cola...")
-#        tarea = cola_de_tareas.get()
-#        logging.info("📥 Tarea recibida. Ejecutando...")
-#        try:
-#            tarea()
-#        except Exception as e:
-#            logging.exception(f"💥 Error en tarea encolada: {str(e)}")
-#        cola_de_tareas.task_done()
+def worker_de_tareas():
+    logging.info("🧵 Worker de tareas iniciado.")
+    while True:
+        logging.info("🕓 Esperando tarea en la cola...")
+        order_id_actual = cola_de_tareas.get()
+        logging.info("📥 Tarea recibida. Ejecutando...")
+        try:
+            procesar_orden(order_id_actual)
+        except Exception as e:
+            logging.exception(f"💥 Error en tarea encolada: {str(e)}")
+        cola_de_tareas.task_done()
+        time.sleep(30)
 
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
@@ -159,8 +160,9 @@ def webhook():
         return "Falta ID", 400
 
 #    threading.Thread(target=tarea_de_prueba, args=(order_id,), daemon=True).start()
-    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
+#    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
 
+    cola_de_tareas.put(order_id)
 #    cola_de_tareas.put(lambda: procesar_orden(order_id))
 #    cola_de_tareas.put(lambda: tarea_de_prueba(order_id))
     return "", 200
@@ -173,8 +175,8 @@ logging.basicConfig(
 
 
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
-#threading.Thread(target=worker_de_tareas, daemon=True).start()
-threading.Thread(target=ajuste_inventario, daemon=True).start()
+threading.Thread(target=worker_de_tareas, daemon=True).start()
+#threading.Thread(target=ajuste_inventario, daemon=True).start()
 
 # 🚀 Inicio del servidor Flask - Funcionamiento local
 if __name__ == "__main__":
