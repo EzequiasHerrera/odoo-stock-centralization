@@ -166,7 +166,8 @@ def webhook():
 
 #    if not verify_signature(raw_data, hmac_header):
 #        abort(401, "Firma inválida")
-
+    global order_id_actual
+    
     data = request.get_json(force=True, silent=True)
     if not data or not isinstance(data, dict):
         logging.warning("❌ Webhook sin JSON válido.")
@@ -178,6 +179,8 @@ def webhook():
         return "Falta ID", 400
 
     order_id_actual = order_id
+    logging.info("Order_id_actual = {order_id_actual}")
+
 #    threading.Thread(target=tarea_de_prueba, args=(order_id,), daemon=True).start()
 #    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
 
