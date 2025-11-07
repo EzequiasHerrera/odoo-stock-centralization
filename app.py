@@ -133,15 +133,20 @@ def ajuste_inventario():
 def tarea_de_prueba(order_id):
     logging.info(f"🧪 Tarea de prueba ejecutada con order_id={order_id}")
 
+# Endpoint para el / en respuesta a Render
+@app.route("/")
+def index():
+    return "Servicio activo", 200
+
 
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    raw_data = request.get_data()
-    hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
+#    raw_data = request.get_data()
+#    hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
 
-    if not verify_signature(raw_data, hmac_header):
-        abort(401, "Firma inválida")
+#    if not verify_signature(raw_data, hmac_header):
+#        abort(401, "Firma inválida")
 
     data = request.get_json(force=True, silent=True)
     if not data or not isinstance(data, dict):
@@ -153,7 +158,9 @@ def webhook():
         logging.warning("❌ No se encontró el ID de la orden en el webhook.")
         return "Falta ID", 400
 
+#    threading.Thread(target=tarea_de_prueba, args=(order_id,), daemon=True).start()
     threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
+
 #    cola_de_tareas.put(lambda: procesar_orden(order_id))
 #    cola_de_tareas.put(lambda: tarea_de_prueba(order_id))
     return "", 200
