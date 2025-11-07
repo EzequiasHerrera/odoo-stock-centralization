@@ -39,23 +39,23 @@ app = Flask(__name__)
 # 🔁 Cola de tareas y worker dedicado
 
 #cola_de_tareas = queue.Queue()
-order_id_actual = None  # Valor inicial que no dispara procesamiento
+#order_id_actual = None  # Valor inicial que no dispara procesamiento
 
-def worker_manual():
-    global order_id_actual
-    logging.info("🧵 Worker manual iniciado.")
-    while True:
-        logging.info(f"---- Worker manual evaluando order_id.: {order_id_actual}")
-        if order_id_actual:
-            logging.info(f"🚀 Procesando orden {order_id_actual}")
-            try:
-#                tarea_de_prueba(order_id_actual)
-                procesar_orden(order_id_actual)
-            except Exception as e:
-                logging.exception(f"💥 Error al procesar orden: {e}")
-            order_id_actual = None
-            logging.info("✅ order_id_actual reiniciado a None")
-        time.sleep(30)  # Evita loop activo    
+#def worker_manual():
+#    global order_id_actual
+#    logging.info("🧵 Worker manual iniciado.")
+#    while True:
+#        logging.info(f"---- Worker manual evaluando order_id.: {order_id_actual}")
+#        if order_id_actual:
+#            logging.info(f"🚀 Procesando orden {order_id_actual}")
+#            try:
+##                tarea_de_prueba(order_id_actual)
+#                procesar_orden(order_id_actual)
+#            except Exception as e:
+#                logging.exception(f"💥 Error al procesar orden: {e}")
+#            order_id_actual = None
+#            logging.info("✅ order_id_actual reiniciado a None")
+#        time.sleep(30)  # Evita loop activo    
 
 #def worker_de_tareas():
 #    logging.info("🧵 Worker de tareas iniciado.")
@@ -150,6 +150,10 @@ def ajuste_inventario():
         time.sleep(60)
 
 def tarea_de_prueba(order_id):
+    logging.info(f"🧪 Tarea de prueba iniciada. Esperando 30 segundos para orden {order_id}")
+    time.sleep(30)
+    logging.info(f"🧪 Tarea de prueba... punto medio {order_id}")
+    time.sleep(30)
     logging.info(f"🧪 Tarea de prueba ejecutada con order_id={order_id}")
 
 # Endpoint para el / en respuesta a Render
@@ -178,12 +182,12 @@ def webhook():
         logging.warning("❌ No se encontró el ID de la orden en el webhook.")
         return "Falta ID", 400
 
-    order_id_actual = order_id
-    logging.info(f"Order_id_actual = {order_id_actual}")
+#    order_id_actual = order_id
+#    logging.info(f"Order_id_actual = {order_id_actual}")
 
 #    threading.Thread(target=tarea_de_prueba, args=(order_id,), daemon=True).start()
-#    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
-
+    threading.Thread(target=procesar_orden, args=(order_id,), daemon=True).start()
+    
 #    cola_de_tareas.put(order_id)
 #    cola_de_tareas.put(lambda: procesar_orden(order_id))
 #    cola_de_tareas.put(lambda: tarea_de_prueba(order_id))
@@ -197,7 +201,7 @@ logging.basicConfig(
 
 
 # 🧵 Lanzamos el worker de tareas y la tarea periódica
-threading.Thread(target=worker_manual, daemon=True).start()
+#threading.Thread(target=worker_manual, daemon=True).start()
 #threading.Thread(target=worker_de_tareas, daemon=True).start()
 #threading.Thread(target=ajuste_inventario, daemon=True).start()
 
