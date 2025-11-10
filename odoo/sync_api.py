@@ -1,10 +1,8 @@
 import requests
-
-from odoo.connect_odoo import connect_odoo
-from odoo.products_service_odoo import get_affected_kits_by_components
-from tiendanube.products_service_tn import update_stock_by_sku
-
 import logging
+
+from tiendanube.products_service_tn import update_stock_by_sku
+from odoo.products_service_odoo import get_affected_kits_by_components
 
 def activar_automatizacion_odoo(record_id):
     url = "https://pintimates.odoo.com/web/hook/ba293fd7-ec47-435b-869f-93d2084222d5"
@@ -22,15 +20,12 @@ def activar_automatizacion_odoo(record_id):
     except Exception as e:
         logging.exception(f"💥 Excepción al enviar webhook: {e}")
 
-
-def ajustes_inventario_pendientes():
-    models, db, uid, password = connect_odoo()
+def ajustes_inventario_pendientes(models, db, uid, password):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo conectar a Odoo para obtener Ajustes de Inventario de Sync API")
         return
 
     try:
-        # Buscar registros con estado "Pendiente"
         registros_pendientes_ids = models.execute_kw(db, uid, password,
             'x_stock', 'search',
             [[['x_studio_estado', '=', 'Pendiente']]])
@@ -39,7 +34,6 @@ def ajustes_inventario_pendientes():
             logging.info("📭 No hay ajustes de inventario pendientes en x_stock.")
             return
 
-        # Leer los SKUs
         registros_pendientes_data = models.execute_kw(db, uid, password,
             'x_stock', 'read',
             [registros_pendientes_ids], {'fields': ['x_studio_sku']})
@@ -53,7 +47,6 @@ def ajustes_inventario_pendientes():
 
             skus_detectados.append(sku)
 
-            # Marcar como procesado en el momento que se toma
             registro_id = registro.get('id')
             try:
                 activar_automatizacion_odoo(registro_id)
@@ -67,10 +60,8 @@ def ajustes_inventario_pendientes():
 
         logging.info(f"📦 SKUs pendientes detectados: {skus_detectados}")
 
-        # Buscar kits afectados
-        kits_relacionados = get_affected_kits_by_components(skus_detectados)
+        kits_relacionados = get_affected_kits_by_components(skus_detectados, models, db, uid, password)
 
-        # Armar lista dicts de SKUs simples con su respectivo virtual_available
         productos_actualizados = []
         for sku in skus_detectados:
             try:
@@ -95,7 +86,6 @@ def ajustes_inventario_pendientes():
             except Exception as e:
                 logging.exception(f"💥 Error al consultar stock para SKU {sku}")
 
-        # Unificar listas y eliminar duplicados
         conjunto_total = productos_actualizados + kits_relacionados
         mapa_skus = {}
         for producto in conjunto_total:
@@ -106,7 +96,6 @@ def ajustes_inventario_pendientes():
         lista_final_actualizacion = list(mapa_skus.values())
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_actualizacion]}")
 
-        # Actualizar stock en TiendaNube
         for producto in lista_final_actualizacion:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
@@ -124,14 +113,15 @@ def ajustes_inventario_pendientes():
     except Exception as e:
         logging.exception("💥 Error actualizando stock por ajuste de inventario")
 
-
-def hay_skus_pendientes():
-    models, db, uid, password = connect_odoo()
+def hay_skus_pendientes(models, db, uid, password):
     if not all([models, db, uid, password]):
         return False
 
-    ids = models.execute_kw(db, uid, password,
-        'x_stock', 'search',
-        [[['x_studio_estado', '=', 'Pendiente']]])
-
-    return bool(ids)
+    try:
+        ids = models.execute_kw(db, uid, password,
+            'x_stock', 'search',
+            [[['x_studio_estado', '=', 'Pendiente']]])
+        return bool(ids)
+    except Exception as e:
+        logging.exception("💥 Error verificando SKUs pendientes")
+        return False

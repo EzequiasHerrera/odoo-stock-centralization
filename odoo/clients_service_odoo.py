@@ -1,12 +1,8 @@
-# CONECTO CON ODOO
-from odoo.connect_odoo import connect_odoo
-
-# Separamos la lógica, se obtiene el cliente por documento y si no se encuentra se ejecuta la funcion crear_cliente
-from odoo.connect_odoo import connect_odoo
+# 🔗 Funciones para gestionar clientes en Odoo
 import logging
 
-def get_client_id_by_dni(dni, name=None, email=None):
-    models, db, uid, password = connect_odoo()
+# Se obtiene el cliente por documento y si no se encuentra se ejecuta la función crear_cliente
+def get_client_id_by_dni(dni, name=None, email=None, models=None, db=None, uid=None, password=None):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo establecer conexión con Odoo.")
         return None
@@ -25,7 +21,7 @@ def get_client_id_by_dni(dni, name=None, email=None):
             return partner_id[0]
 
         # Si no existe, lo creo
-        nuevo_id = crear_cliente(name, email, dni)
+        nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)
         logging.info(f"✅ Cliente creado con ID: {nuevo_id}")
         return nuevo_id
 
@@ -34,11 +30,7 @@ def get_client_id_by_dni(dni, name=None, email=None):
         return None
 
 
-from odoo.connect_odoo import connect_odoo
-import logging
-
-def crear_cliente(name, email, dni):
-    models, db, uid, password = connect_odoo()
+def crear_cliente(name, email, dni, models=None, db=None, uid=None, password=None):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo establecer conexión con Odoo para crear cliente.")
         return None

@@ -1,5 +1,5 @@
 # app.py — Webhook + Worker con Redis para Render
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request
 import os
 import hmac
 import hashlib
@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from integration.idempotencia import verificar_idempotencia
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
 from tiendanube.products_service_tn import update_stock_by_sku
+from odoo.connect_odoo import connect_odoo
 from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
 from odoo.sync_api import ajustes_inventario_pendientes
@@ -66,24 +67,25 @@ def webhook():
         if not order_id:
             return "", 400
 
-        # ✅ RESPONDER YA
         threading.Thread(target=lambda: encolar_orden(order_id), daemon=True).start()
         return "", 200
 
     except Exception as e:
         logging.exception(f"💥 Error en webhook: {str(e)}")
         return "", 500
-    
+
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
     logging.info("👷 Worker iniciado, esperando órdenes...")
+    models, db, uid, password = connect_odoo()
+    logging.info("👷 Worker conectado a Odoo")
     while True:
         try:
             item = r.brpop(QUEUE_KEY, timeout=5)
             if item:
                 _, order_id = item
                 logging.info(f"📥 Procesando orden {order_id} desde {QUEUE_KEY}")
-                procesar_orden(order_id)
+                procesar_orden(order_id, models, db, uid, password)
                 logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
@@ -95,20 +97,22 @@ def encolar_orden(order_id):
         logging.info(f"🗃 Orden {order_id} encolada en Redis (hilo)")
     except Exception as e:
         logging.exception(f"💥 Error encolando orden {order_id}: {e}")
-        
+
 # 🔁 Tarea periódica para ajustes de inventario
 def ajuste_inventario():
-    logging.info("🚀 Hilo de tarea periódica iniciado.")
+    logging.info("🚀 Ajuste de inventario - Iniciado...")
+    models, db, uid, password = connect_odoo()
+    logging.info("🚀 Ajuste de inventario - Conectado a Odoo")
     while True:
         try:
             logging.info("⏱ Ejecutando tarea periódica...")
-            ajustes_inventario_pendientes()
+            ajustes_inventario_pendientes(models, db, uid, password)
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
         time.sleep(60)
 
-# 🔧 Lógica de procesamiento de orden (sin cambios)
-def procesar_orden(order_id):
+# 🔧 Lógica de procesamiento de orden
+def procesar_orden(order_id, models, db, uid, password):
     if not verificar_idempotencia(order_id):
         logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
         return
@@ -126,25 +130,25 @@ def procesar_orden(order_id):
         client_name = order_data.get("client_data", {}).get("name")
         client_email = order_data.get("client_data", {}).get("email")
 
-        client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
+        client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email, models, db, uid, password)
         date = datetime.now()
-        order_sale_id_odoo = create_sales_order(client_id_odoo, date)
+        order_sale_id_odoo = create_sales_order(client_id_odoo, date, models, db, uid, password)
         logging.info(f"🧾 Orden de venta creada en Odoo: {order_sale_id_odoo}")
 
         for producto in order_data.get("products_data", []):
             sku = producto.get("sku")
             quantity = int(producto.get("quantity", 0))
             price = float(producto["price"]) if producto.get("price") else 0.0
-            cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
+            cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price, models, db, uid, password)
             logging.info(f"➕ Producto agregado: SKU={sku}, cantidad={quantity}, precio={price}")
 
-        confirm_sales_order(order_sale_id_odoo)
+        confirm_sales_order(order_sale_id_odoo, models, db, uid, password)
         logging.info(f"✅ Orden de venta confirmada en Odoo: {order_sale_id_odoo}")
 
-        order_name = get_order_name_by_id(order_sale_id_odoo)
-        affected_products = get_skus_and_stock_from_order(order_name)
+        order_name = get_order_name_by_id(order_sale_id_odoo, models, db, uid, password)
+        affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
         skus_componentes = [p["default_code"] for p in affected_products]
-        affected_kits = get_affected_kits_by_components(skus_componentes)
+        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
 
         final_sku_list = affected_products + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
@@ -164,5 +168,8 @@ def procesar_orden(order_id):
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
 # 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
-threading.Thread(target=worker_loop, daemon=True).start()
-threading.Thread(target=ajuste_inventario, daemon=True).start()
+logging.info(f"🔍 ROLE detectado: {os.getenv('ROLE')}")
+if os.getenv("ROLE") == "web":
+    time.sleep(2)  # ⏳ Esperar a que Gunicorn estabilice
+    threading.Thread(target=worker_loop, daemon=True).start()
+    threading.Thread(target=ajuste_inventario, daemon=True).start()

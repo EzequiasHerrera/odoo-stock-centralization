@@ -1,8 +1,6 @@
-from odoo.connect_odoo import connect_odoo
 import logging
 
-def obtener_producto_por_sku(sku):
-    models, db, uid, password = connect_odoo()
+def obtener_producto_por_sku(sku, models, db, uid, password):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo conectar a Odoo para obtener producto.")
         return None
@@ -51,8 +49,7 @@ def obtener_producto_por_sku(sku):
         logging.exception(f"💥 Error obteniendo producto por SKU '{sku}': {str(e)}")
         return None
 
-def obtener_bom_producto_por_id(product_id, product_tmpl_id):
-    models, db, uid, password = connect_odoo()
+def obtener_bom_producto_por_id(product_id, product_tmpl_id, models, db, uid, password):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo conectar a Odoo para obtener BoM.")
         return []
@@ -119,13 +116,13 @@ def obtener_bom_producto_por_id(product_id, product_tmpl_id):
         logging.exception(f"💥 Error obteniendo BoM para producto ID {product_id}: {str(e)}")
         return []
 
-def obtener_producto_con_bom_por_sku(sku):
-    producto = obtener_producto_por_sku(sku)
+def obtener_producto_con_bom_por_sku(sku, models, db, uid, password):
+    producto = obtener_producto_por_sku(sku, models, db, uid, password)
     if not producto:
         return None
 
     if producto["bom_count"] > 0:
-        bom = obtener_bom_producto_por_id(producto["product_id"], producto["product_tmpl_id"])
+        bom = obtener_bom_producto_por_id(producto["product_id"], producto["product_tmpl_id"], models, db, uid, password)
         producto["bom"] = bom
     else:
         producto["bom"] = []
@@ -133,8 +130,7 @@ def obtener_producto_con_bom_por_sku(sku):
     logging.info(f"📦 Producto con BoM: {producto}")
     return producto
 
-def get_affected_kits_by_components(lista_skus_componentes):
-    models, db, uid, password = connect_odoo()
+def get_affected_kits_by_components(lista_skus_componentes, models, db, uid, password):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo conectar a Odoo para buscar kits afectados.")
         return []
