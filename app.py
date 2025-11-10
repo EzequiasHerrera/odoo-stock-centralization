@@ -54,23 +54,26 @@ def verify_signature(data, hmac_header):
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
-    raw_data = request.get_data()
+    try:
+        hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
+        raw_data = request.get_data()
 
-    if not verify_signature(raw_data, hmac_header):
-        abort(401, "Firma inválida")
+        if not verify_signature(raw_data, hmac_header):
+            return "", 401
 
-    data = request.json
-    order_id = data.get("id")
+        data = request.json
+        order_id = data.get("id")
+        if not order_id:
+            return "", 400
 
-    if not order_id:
-        logging.error("❌ No se encontró el ID de la orden en el webhook.")
-        return "Falta ID", 400
+        # ✅ RESPONDER YA
+        threading.Thread(target=lambda: encolar_orden(order_id), daemon=True).start()
+        return "", 200
 
-    r.lpush(QUEUE_KEY, order_id)
-    logging.info(f"🗃 Orden {order_id} encolada en Redis")
-    return jsonify({"status": "ok", "order_id": order_id})
-
+    except Exception as e:
+        logging.exception(f"💥 Error en webhook: {str(e)}")
+        return "", 500
+    
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
     logging.info("👷 Worker iniciado, esperando órdenes...")
@@ -86,6 +89,13 @@ def worker_loop():
             logging.exception(f"💥 Error en worker: {str(e)}")
             time.sleep(30)
 
+def encolar_orden(order_id):
+    try:
+        r.lpush(QUEUE_KEY, order_id)
+        logging.info(f"🗃 Orden {order_id} encolada en Redis (hilo)")
+    except Exception as e:
+        logging.exception(f"💥 Error encolando orden {order_id}: {e}")
+        
 # 🔁 Tarea periódica para ajustes de inventario
 def ajuste_inventario():
     logging.info("🚀 Hilo de tarea periódica iniciado.")
