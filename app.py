@@ -1,53 +1,158 @@
-# app.py
+# app.py — Webhook + Worker con Redis para Render
+from flask import Flask, request, jsonify, abort
 import os
+import hmac
+import hashlib
+import logging
 import threading
 import time
 import redis
-from flask import Flask, request, jsonify
+from datetime import datetime
+from dotenv import load_dotenv
 
-app = Flask(__name__)
-app.logger.setLevel("INFO")  # Mostrar logs en Render
+# --- Módulos propios ---
+from integration.idempotencia import verificar_idempotencia
+from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
+from tiendanube.products_service_tn import update_stock_by_sku
+from odoo.products_service_odoo import get_affected_kits_by_components
+from odoo.clients_service_odoo import get_client_id_by_dni
+from odoo.sync_api import ajustes_inventario_pendientes
+from odoo.orders_service_odoo import (
+    create_sales_order,
+    confirm_sales_order,
+    cargar_producto_a_orden_de_venta,
+    get_order_name_by_id,
+    get_skus_and_stock_from_order
+)
 
-# --- Redis ---
+# --- Cargar variables de entorno ---
+load_dotenv()
+APP_SECRET = os.getenv("TIENDANUBE_SECRET")
 REDIS_URL = os.getenv("REDIS_URL")
-if not REDIS_URL:
-    raise ValueError("❌ REDIS_URL no está definida")
-
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 QUEUE_KEY = "ordenes_pendientes"
 
-# --- Endpoint webhook ---
+# --- Inicializar Flask ---
+app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
+
+# --- Configuración global de logging ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+# --- Conexión a Redis ---
+if not REDIS_URL:
+    raise ValueError("❌ REDIS_URL no está definida")
+r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+# 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
+def verify_signature(data, hmac_header):
+    digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(digest, hmac_header)
+
+# 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json()
+    hmac_header = request.headers.get("x-linkedstore-hmac-sha256")
+    raw_data = request.get_data()
+
+    if not verify_signature(raw_data, hmac_header):
+        abort(401, "Firma inválida")
+
+    data = request.json
     order_id = data.get("id")
 
     if not order_id:
-        return jsonify({"error": "Falta order_id"}), 400
+        logging.error("❌ No se encontró el ID de la orden en el webhook.")
+        return "Falta ID", 400
 
     r.lpush(QUEUE_KEY, order_id)
-    app.logger.info(f"🗃 Orden {order_id} encolada en Redis")
+    logging.info(f"🗃 Orden {order_id} encolada en Redis")
     return jsonify({"status": "ok", "order_id": order_id})
 
-
-# --- Worker ---
+# 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
-    app.logger.info("👷 Worker iniciado, esperando órdenes...")
+    logging.info("👷 Worker iniciado, esperando órdenes...")
     while True:
         try:
             item = r.brpop(QUEUE_KEY, timeout=5)
             if item:
-                queue, order_id = item
-                app.logger.info(f"📥 Procesando orden {order_id} desde {queue}")
-                time.sleep(2)
-                app.logger.info(f"✅ Orden {order_id} procesada")
+                _, order_id = item
+                logging.info(f"📥 Procesando orden {order_id} desde {QUEUE_KEY}")
+                procesar_orden(order_id)
+                logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
-            app.logger.error(f"❌ Error en worker: {e}")
-            time.sleep(5)
+            logging.exception(f"💥 Error en worker: {str(e)}")
+            time.sleep(30)
 
-# Lanzar worker incluso con Gunicorn
-def start_worker():
-    t = threading.Thread(target=worker_loop, daemon=True)
-    t.start()
+# 🔁 Tarea periódica para ajustes de inventario
+def ajuste_inventario():
+    logging.info("🚀 Hilo de tarea periódica iniciado.")
+    while True:
+        try:
+            logging.info("⏱ Ejecutando tarea periódica...")
+            ajustes_inventario_pendientes()
+        except Exception as e:
+            logging.exception(f"💥 Error en tarea periódica: {str(e)}")
+        time.sleep(60)
 
-start_worker()
+# 🔧 Lógica de procesamiento de orden (sin cambios)
+def procesar_orden(order_id):
+    if not verificar_idempotencia(order_id):
+        logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
+        return
+
+    try:
+        order = get_order_by_id(order_id)
+        if not order:
+            logging.error(f"❌ No se pudo obtener la orden {order_id}")
+            return
+
+        order_data = extract_order_data(order)
+        logging.info(f"📦 Datos extraídos de la orden {order_id}: {order_data}")
+
+        client_dni = order_data.get("client_data", {}).get("dni")
+        client_name = order_data.get("client_data", {}).get("name")
+        client_email = order_data.get("client_data", {}).get("email")
+
+        client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email)
+        date = datetime.now()
+        order_sale_id_odoo = create_sales_order(client_id_odoo, date)
+        logging.info(f"🧾 Orden de venta creada en Odoo: {order_sale_id_odoo}")
+
+        for producto in order_data.get("products_data", []):
+            sku = producto.get("sku")
+            quantity = int(producto.get("quantity", 0))
+            price = float(producto["price"]) if producto.get("price") else 0.0
+            cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price)
+            logging.info(f"➕ Producto agregado: SKU={sku}, cantidad={quantity}, precio={price}")
+
+        confirm_sales_order(order_sale_id_odoo)
+        logging.info(f"✅ Orden de venta confirmada en Odoo: {order_sale_id_odoo}")
+
+        order_name = get_order_name_by_id(order_sale_id_odoo)
+        affected_products = get_skus_and_stock_from_order(order_name)
+        skus_componentes = [p["default_code"] for p in affected_products]
+        affected_kits = get_affected_kits_by_components(skus_componentes)
+
+        final_sku_list = affected_products + affected_kits
+        skus_unicos = {item["default_code"]: item for item in final_sku_list}
+        lista_final_sin_duplicados = list(skus_unicos.values())
+
+        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
+
+        for producto in lista_final_sin_duplicados:
+            sku = producto.get("default_code", "N/A")
+            stock = producto.get("virtual_available", 0.0)
+            update_stock_by_sku(sku, stock)
+            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+
+        logging.info(f"🎯 Orden {order_id} procesada exitosamente.")
+
+    except Exception as e:
+        logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
+
+# 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
+threading.Thread(target=worker_loop, daemon=True).start()
+threading.Thread(target=ajuste_inventario, daemon=True).start()
