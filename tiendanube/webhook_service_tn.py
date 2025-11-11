@@ -1,7 +1,7 @@
-import requests
 import os
+import requests
+import logging
 from dotenv import load_dotenv
-from pathlib import Path
 
 load_dotenv()
 
@@ -9,7 +9,6 @@ ACCESS_TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
 STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") + "/webhook"
 
-#Funcion que solamente se debe ejecutar para registrar Webhooks en la tienda
 def registrar_webhook(webhookName):
     url = f"https://api.tiendanube.com/v1/{STORE_ID}/webhooks"
     headers = {
@@ -21,15 +20,22 @@ def registrar_webhook(webhookName):
         "event": webhookName
     }
 
-    response = requests.post(url, json=data, headers=headers)
+    logging.info(f"📡 Intentando registrar webhook para evento: {webhookName}")
+
+    try:
+        response = requests.post(url, json=data, headers=headers)
+    except Exception as e:
+        logging.exception("💥 Error de red al registrar el webhook")
+        return
 
     if response.status_code == 201:
-        print("✅ Webhook registrado correctamente")
-        print("📦 Respuesta:", response.json())
+        logging.info("✅ Webhook registrado correctamente")
+        logging.info(f"📦 Respuesta: {response.json()}")
     else:
-        print("❌ Error al registrar el Webhook")
-        print("🔍 Código:", response.status_code)
-        print("📄 Detalles:", response.text)
+        logging.error("❌ Error al registrar el Webhook")
+        logging.error(f"🔍 Código: {response.status_code}")
+        logging.error(f"📄 Detalles: {response.text}")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     registrar_webhook("order/paid")
