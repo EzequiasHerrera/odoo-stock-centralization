@@ -168,8 +168,6 @@ def procesar_orden(order_id, models, db, uid, password):
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
 # 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
-logging.info(f"🔍 ROLE detectado: {os.getenv('ROLE')}")
-if os.getenv("ROLE") == "web":
     time.sleep(2)  # ⏳ Esperar a que Gunicorn estabilice
     threading.Thread(target=worker_loop, daemon=True).start()
     threading.Thread(target=ajuste_inventario, daemon=True).start()
