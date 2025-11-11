@@ -67,7 +67,7 @@ def webhook():
         if not order_id:
             return "", 400
 
-        threading.Thread(target=lambda: encolar_orden(order_id), daemon=True).start()
+        threading.Thread(target=encolar_orden, args=(order_id,), daemon=True).start()
         return "", 200
 
     except Exception as e:
@@ -76,7 +76,7 @@ def webhook():
 
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
-    logging.info("👷 Worker iniciado, esperando órdenes...")
+    logging.info("👷 Worker iniciado!!!")
     models, db, uid, password = connect_odoo()
     logging.info("👷 Worker conectado a Odoo")
     while True:
@@ -89,10 +89,12 @@ def worker_loop():
                 logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
-            time.sleep(30)
+        time.sleep(30)
+        logging.info("👷 Worker en espera...")
 
 def encolar_orden(order_id):
     try:
+        logging.info(f"🧵 Hilo encolar_orden iniciado para orden {order_id}")
         r.lpush(QUEUE_KEY, order_id)
         logging.info(f"🗃 Orden {order_id} encolada en Redis (hilo)")
     except Exception as e:
