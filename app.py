@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from integration.idempotencia import verificar_idempotencia
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
 from tiendanube.products_service_tn import update_stock_by_sku
-from odoo.connect_odoo import connect_odoo, conectar_con_reintentos
+from odoo.connect_odoo import conectar_con_reintentos
 from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
 from odoo.sync_api import ajustes_inventario_pendientes
@@ -102,7 +102,7 @@ def worker_loop():
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
         time.sleep(30)
-        logging.info("👷 Worker en espera...")
+        logging.info("👷 Worker buscando ordenes de venta pendientes.")
 
 def encolar_orden(order_id):
     try:

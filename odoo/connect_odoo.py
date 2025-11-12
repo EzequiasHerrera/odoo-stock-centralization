@@ -7,6 +7,7 @@ def connect_odoo():
 
     # Para funcionamiento local -------------------------------------------
     if os.getenv("RENDER") is None:
+        logging.info("✅ Ejecución LOCAL - Cargando variables...")
         from dotenv import load_dotenv
         load_dotenv()
 
