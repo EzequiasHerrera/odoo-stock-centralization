@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from integration.idempotencia import verificar_idempotencia
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
 from tiendanube.products_service_tn import update_stock_by_sku
-from odoo.connect_odoo import connect_odoo
+from odoo.connect_odoo import connect_odoo, conectar_con_reintentos
 from odoo.products_service_odoo import get_affected_kits_by_components
 from odoo.clients_service_odoo import get_client_id_by_dni
 from odoo.sync_api import ajustes_inventario_pendientes
@@ -26,8 +26,12 @@ from odoo.orders_service_odoo import (
     get_skus_and_stock_from_order
 )
 
-# --- Cargar variables de entorno ---
-load_dotenv()
+# --- Cargar variables de entorno si no estoy en Render ---
+if os.getenv("RENDER") is None:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")
 REDIS_URL = os.getenv("REDIS_URL")
 QUEUE_KEY = "ordenes_pendientes"
@@ -81,7 +85,11 @@ def webhook():
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
     logging.info("👷 Worker iniciado!!!")
-    models, db, uid, password = connect_odoo()
+    models, db, uid, password = conectar_con_reintentos()
+    if not all([models, db, uid, password]):
+        logging.error("❌ Abortando worker por fallo de conexión")
+        return
+
     logging.info("👷 Worker conectado a Odoo")
     while True:
         try:
@@ -107,8 +115,11 @@ def encolar_orden(order_id):
 # 🔁 Tarea periódica para ajustes de inventario
 def ajuste_inventario():
     logging.info("🚀 Ajuste de inventario - Iniciado...")
-    time.sleep(30)
-    models, db, uid, password = connect_odoo()
+    models, db, uid, password = conectar_con_reintentos()
+    if not all([models, db, uid, password]):
+        logging.error("❌ Abortando tarea de ajuste por fallo de conexión")
+        return
+
     logging.info("🚀 Ajuste de inventario - Conectado a Odoo")
     while True:
         try:
