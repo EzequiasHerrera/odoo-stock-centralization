@@ -7,6 +7,8 @@ import logging
 import threading
 import time
 import redis
+
+from integration.redis_client import r
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -46,16 +48,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-# --- Conexión a Redis ---
-if not REDIS_URL:
-    raise ValueError("❌ REDIS_URL no está definida")
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-try:
-    r.ping()
-    logging.info("✅ Redis conectado correctamente")
-except Exception as e:
-    logging.exception(f"💥 Error conectando a Redis: {e}")
-
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
     digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
@@ -63,6 +55,7 @@ def verify_signature(data, hmac_header):
 
 @app.route("/", methods=["GET"])
 def index():
+    logging.info("✅ ODOO STOCK CENTRALIZATION online!!!")
     return "🟢 Odoo Stock Centralization está activo", 200
 
 # 🌐 Endpoint principal que recibe el webhook

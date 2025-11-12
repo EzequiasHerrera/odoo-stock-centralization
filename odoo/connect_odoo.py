@@ -48,7 +48,6 @@ def conectar_con_reintentos(max_reintentos=5, espera_segundos=10):
         logging.info(f"🔄 Intento {intento} de conexión a Odoo...")
         models, db, uid, password = connect_odoo()
         if all([models, db, uid, password]):
-            logging.info("✅ Conexión exitosa a Odoo")
             return models, db, uid, password
         else:
             logging.warning("⚠️ Falló la conexión. Reintentando...")
