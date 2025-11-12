@@ -50,6 +50,11 @@ logging.basicConfig(
 if not REDIS_URL:
     raise ValueError("❌ REDIS_URL no está definida")
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+try:
+    r.ping()
+    logging.info("✅ Redis conectado correctamente")
+except Exception as e:
+    logging.exception(f"💥 Error conectando a Redis: {e}")
 
 # 🔐 Verificación de firma HMAC para asegurar que el webhook proviene de TiendaNube
 def verify_signature(data, hmac_header):
@@ -105,10 +110,24 @@ def worker_loop():
         logging.info("👷 Worker buscando ordenes de venta pendientes.")
 
 def encolar_orden(order_id):
+    logging.info(f"🧵 Hilo encolar_orden iniciado para orden {order_id}")
+
+    if not order_id:
+        logging.error("❌ order_id no válido. Abortando encolado.")
+        return
+
     try:
-        logging.info(f"🧵 Hilo encolar_orden iniciado para orden {order_id}")
-        r.lpush(QUEUE_KEY, order_id)
-        logging.info(f"🗃 Orden {order_id} encolada en Redis (hilo)")
+        # Verificar conexión a Redis
+        r.ping()
+        logging.info("✅ Redis está accesible desde encolar_orden")
+
+        # Encolar la orden
+        resultado = r.lpush(QUEUE_KEY, order_id)
+        if resultado > 0:
+            logging.info(f"🗃 Orden {order_id} encolada correctamente en Redis (posición {resultado})")
+        else:
+            logging.warning(f"⚠️ Redis devolvió resultado inesperado al encolar orden {order_id}: {resultado}")
+
     except Exception as e:
         logging.exception(f"💥 Error encolando orden {order_id}: {e}")
 
