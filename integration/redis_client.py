@@ -6,6 +6,7 @@ REDIS_URL = os.getenv("REDIS_URL")
 if not REDIS_URL:
     raise ValueError("❌ REDIS_URL no está definida")
 
+logging.info("🔧 Inicializando Redis...")
 try:
     r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
     r.ping()
