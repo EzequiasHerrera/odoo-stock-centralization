@@ -52,6 +52,10 @@ def verify_signature(data, hmac_header):
     digest = hmac.new(APP_SECRET.encode(), data, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest, hmac_header)
 
+@app.route("/", methods=["GET"])
+def index():
+    return "🟢 Odoo Stock Centralization está activo", 200
+
 # 🌐 Endpoint principal que recibe el webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -103,6 +107,7 @@ def encolar_orden(order_id):
 # 🔁 Tarea periódica para ajustes de inventario
 def ajuste_inventario():
     logging.info("🚀 Ajuste de inventario - Iniciado...")
+    time.sleep(30)
     models, db, uid, password = connect_odoo()
     logging.info("🚀 Ajuste de inventario - Conectado a Odoo")
     while True:
@@ -170,6 +175,6 @@ def procesar_orden(order_id, models, db, uid, password):
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
 
 # 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
-time.sleep(2)  # ⏳ Esperar a que Gunicorn estabilice
+time.sleep(5)  # ⏳ Esperar a que Gunicorn estabilice
 threading.Thread(target=worker_loop, daemon=True).start()
 threading.Thread(target=ajuste_inventario, daemon=True).start()
