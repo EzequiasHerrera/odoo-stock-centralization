@@ -150,7 +150,7 @@ def ajuste_inventario():
 
 # 🔧 Lógica de procesamiento de orden
 def procesar_orden(order_id, models, db, uid, password):
-    if not verificar_idempotencia(order_id):
+    if not verificar_idempotencia(order_id, r):
         logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
         return
 
