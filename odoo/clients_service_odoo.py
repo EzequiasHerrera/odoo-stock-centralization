@@ -16,16 +16,33 @@ def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, 
             return nuevo_id
 
         # Buscar cliente por DNI
-        partner_id = models.execute_kw(
+        partner_ids = models.execute_kw(
             db, uid, password,
             "res.partner", "search",
             [[["vat", "=", dni]]],
             {"limit": 1}
         )
 
-        if partner_id:
-            logging.info(f"👤 Cliente encontrado por DNI {dni}: ID={partner_id[0]}")
-            return partner_id[0]
+        if partner_ids:
+            partner_id = partner_ids[0]
+            partner_data = models.execute_kw(
+                db, uid, password,
+                "res.partner", "read",
+                [partner_ids],
+                {"fields": ["name", "email", "vat"]}
+            )[0]
+
+            nombre_odoo = partner_data.get("name", "").strip().lower()
+            nombre_recibido = name.strip().lower() if name else ""
+
+            if nombre_odoo != nombre_recibido:
+                logging.warning(f"⚠️ Nombre recibido ({name}) no coincide con el registrado ({partner_data['name']}). Se creará nuevo cliente.")
+                nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)
+                logging.info(f"✅ Cliente nuevo creado con mismo DNI pero nombre distinto: ID={nuevo_id}")
+                return nuevo_id
+
+            logging.info(f"👤 Cliente reutilizado por coincidencia de DNI y nombre: ID={partner_id}")
+            return partner_id
 
         # Si no existe, lo creo
         nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)

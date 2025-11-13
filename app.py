@@ -142,7 +142,7 @@ def ajuste_inventario():
     logging.info("🚀 Ajuste de inventario - Conectado a Odoo")
     while True:
         try:
-            logging.info("⏱ Ejecutando tarea periódica...")
+#            logging.info("⏱ Ejecutando tarea periódica...")
             ajustes_inventario_pendientes(models, db, uid, password)
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
