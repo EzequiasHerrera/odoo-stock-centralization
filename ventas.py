@@ -59,7 +59,8 @@ def crear_orden_de_venta(models, db, uid, password):
         'sale.order', 'create',
         [{
             'partner_id': partner_id,
-            'date_order': '2025-10-14',
+            'date_order': '2025-11-13',
+            'client_order_ref': 'TiendaNube',
         }]
     )
 

@@ -9,7 +9,10 @@ def create_sales_order(client_id, date, models, db, uid, password):
         order_id = models.execute_kw(
             db, uid, password,
             "sale.order", "create",
-            [{"partner_id": client_id, "date_order": date}]
+            [{"partner_id": client_id,
+              "date_order": date,
+              "client_order_ref": 'TiendaNube'       # Identifico el Origen
+            }]
         )
         logging.info(f"🛒 Orden creada con ID: {order_id}")
         return order_id
