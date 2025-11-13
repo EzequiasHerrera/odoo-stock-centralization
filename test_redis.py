@@ -8,21 +8,11 @@ REDIS_URL = os.getenv("REDIS_URL")
 
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
-QUEUE_KEY = "ordenes_pendientes"
+order_id = "1830512071"
+idempotency_key = f"orden_procesada:{order_id}"
 
-# 1. Encolar varias órdenes
-orders = ["1001", "1002", "1003"]
-for oid in orders:
-    r.lpush(QUEUE_KEY, oid)
-    print(f"🗃 Encolada orden {oid}")
-
-# 2. Consumir la cola en secuencia
-print("📥 Consumidor esperando órdenes...")
-while True:
-    item = r.brpop(QUEUE_KEY, timeout=3)  # espera hasta 3 segundos
-    if item:
-        queue, value = item
-        print(f"✅ Procesada orden desde {queue}: {value}")
-    else:
-        print("⏸ Cola vacía, fin de prueba.")
-        break
+if r.exists(idempotency_key):
+    ttl = r.ttl(idempotency_key)
+    print(f"✅ La orden {order_id} está registrada como procesada. TTL restante: {ttl} segundos")
+else:
+    print(f"❌ La orden {order_id} no está registrada en Redis")
