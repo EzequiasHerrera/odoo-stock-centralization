@@ -87,6 +87,24 @@ def webhook():
         logging.exception(f"💥 Error en webhook: {str(e)}")
         return "", 500
 
+# Este Webhook viene desde Odoo, notificando la confirmación de una orden de venta (no TiendaNube)
+@app.route("/webhook_odoo_confirmacion", methods=["POST"])
+def webhook_odoo_confirmacion():
+    try:
+        data = request.json
+        order_name = data.get("order_name")
+
+        if not order_name:
+            return "❌ order_name faltante", 400
+
+        logging.info(f"📨 Webhook recibido desde Odoo: orden {order_name}")
+        return "✅ Webhook recibido", 200
+
+    except Exception as e:
+        logging.exception(f"💥 Error en webhook_odoo_confirmacion: {str(e)}")
+        return "💥 Error interno", 500
+
+
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
     logging.info("👷 Worker iniciado!!!")
