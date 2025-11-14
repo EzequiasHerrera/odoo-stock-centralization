@@ -1,3 +1,4 @@
+import requests
 import os
 import xmlrpc.client
 from dotenv import load_dotenv
@@ -132,6 +133,17 @@ while True:
         actualizar_stock_odoo_por_sku(models, db, uid, password, sku, nueva_cantidad)
     elif opcion == "10":
         buscar_sku_pendientes(models, db, uid, password)
+
+    elif opcion == "11":
+        url_webhook = "https://odoo-stock-centralization-q89u.onrender.com/webhook_odoo_confirmacion"
+#        url_webhook = "https://odoo-stock-centralization-q89u.onrender.com/webhook"
+        
+        payload = {"order_name": "S00086"}
+
+        response = requests.post(url_webhook, json=payload)
+        print(response.status_code)
+        print(response.text)
+
 
     elif opcion == "S":
         print("👋 ¡Hasta la próxima!")

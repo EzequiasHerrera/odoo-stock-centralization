@@ -87,17 +87,22 @@ def webhook():
         logging.exception(f"💥 Error en webhook: {str(e)}")
         return "", 500
 
-# Este Webhook viene desde Odoo, notificando la confirmación de una orden de venta (no TiendaNube)
 @app.route("/webhook_odoo_confirmacion", methods=["POST"])
 def webhook_odoo_confirmacion():
     try:
-        data = request.json
-        order_name = data.get("order_name")
+        # Forzar interpretación como JSON aunque falte el header correcto
+        data = request.get_json(force=True)
+        order_name = data.get("name")
 
         if not order_name:
-            return "❌ order_name faltante", 400
+            logging.warning(f"❌ Campo 'name' faltante en payload: {data}")
+            return "❌ name faltante", 400
 
         logging.info(f"📨 Webhook recibido desde Odoo: orden {order_name}")
+
+        # Encolar la orden para procesamiento posterior
+        threading.Thread(target=encolar_orden, args=(order_name,), daemon=True).start()
+
         return "✅ Webhook recibido", 200
 
     except Exception as e:
@@ -120,7 +125,12 @@ def worker_loop():
             if item:
                 _, order_id = item
                 logging.info(f"📥 Procesando orden {order_id} desde {QUEUE_KEY}")
-                procesar_orden(order_id, models, db, uid, password)
+                if order_id.startswith("S"):
+                    logging.info(f"🔁 Orden {order_id} detectada como Odoo")
+                    procesar_orden_odoo(order_id, models, db, uid, password)
+                else:
+                    logging.info(f"🔁 Orden {order_id} detectada como TiendaNube")
+                    procesar_orden(order_id, models, db, uid, password)
                 logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
@@ -221,6 +231,38 @@ def procesar_orden(order_id, models, db, uid, password):
 
     except Exception as e:
         logging.exception(f"💥 Error procesando la orden {order_id}: {str(e)}")
+
+
+# 🔧 Lógica de procesamiento de orden
+def procesar_orden_odoo(order_name, models, db, uid, password):
+    if not verificar_idempotencia(order_name, r):
+        logging.warning(f"⚠️ Orden {order_name} ya fue procesada previamente. Abortando.")
+        return
+
+    try:
+        logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
+
+        affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
+        skus_componentes = [p["default_code"] for p in affected_products]
+        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+
+        final_sku_list = affected_products + affected_kits
+        skus_unicos = {item["default_code"]: item for item in final_sku_list}
+        lista_final_sin_duplicados = list(skus_unicos.values())
+
+        logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
+
+        for producto in lista_final_sin_duplicados:
+            sku = producto.get("default_code", "N/A")
+            stock = producto.get("virtual_available", 0.0)
+            update_stock_by_sku(sku, stock)
+            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+
+        logging.info(f"🎯 Orden {order_name} procesada exitosamente.")
+
+    except Exception as e:
+        logging.exception(f"💥 Error procesando la orden {order_name}: {str(e)}")
+
 
 # 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
 time.sleep(5)  # ⏳ Esperar a que Gunicorn estabilice
