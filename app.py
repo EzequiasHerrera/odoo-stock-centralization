@@ -173,7 +173,10 @@ def ajuste_inventario():
     while True:
         try:
 #            logging.info("⏱ Ejecutando tarea periódica...")
-            ajustes_inventario_pendientes(models, db, uid, password)
+            if impactar_tn: 
+                ajustes_inventario_pendientes(models, db, uid, password)
+            else:
+                logging.info("⚠️ Simulación: NO se hace ajuste de inventario")
         except Exception as e:
             logging.exception(f"💥 Error en tarea periódica: {str(e)}")
         time.sleep(60)
