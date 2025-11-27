@@ -31,6 +31,8 @@ if os.getenv("RENDER") is None:
     from dotenv import load_dotenv
     load_dotenv()
 
+# Leer la variable de entorno (por defecto False si no está definida)
+impactar_tn = os.getenv("IMPACTAR_TN", "False").lower() == "true"
 
 APP_SECRET = os.getenv("TIENDANUBE_SECRET")
 REDIS_URL = os.getenv("REDIS_URL")
@@ -224,8 +226,11 @@ def procesar_orden(order_id, models, db, uid, password):
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
-            update_stock_by_sku(sku, stock)
-            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+            if impactar_tn:
+                update_stock_by_sku(sku, stock)
+                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+            else:
+                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_id} procesada exitosamente.")
 
@@ -255,8 +260,11 @@ def procesar_orden_odoo(order_name, models, db, uid, password):
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
-            update_stock_by_sku(sku, stock)
-            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+            if impactar_tn:
+                update_stock_by_sku(sku, stock)
+                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+            else:
+                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_name} procesada exitosamente.")
 
