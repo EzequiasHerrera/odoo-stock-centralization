@@ -4,9 +4,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# OBTENGO DATOS DE TN
-STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
-TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+# OBTENGO DATOS DE TN TEST
+#STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
+#TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+#TIENDANUBE_URL = os.getenv("TIENDANUBE_URL")
+
+# OBTENGO DATOS DE TN PURA
+STORE_ID = os.getenv("TIENDANUBE_PRINTIMATES_ID")
+TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN")
 TIENDANUBE_URL = os.getenv("TIENDANUBE_URL")
 
 def extract_order_data(order_data):

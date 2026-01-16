@@ -5,9 +5,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = os.getenv("TIENDANUBE_URL");
-STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
-TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+# OBTENGO DATOS DE TN TEST
+#STORE_ID = os.getenv("TIENDANUBE_TESTSTORE_ID")
+#TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN_TEST")
+#API_URL = os.getenv("TIENDANUBE_URL")
+
+# OBTENGO DATOS DE TN PURA
+STORE_ID = os.getenv("TIENDANUBE_PRINTIMATES_ID")
+TOKEN = os.getenv("TIENDANUBE_ACCESS_TOKEN")
+API_URL = os.getenv("TIENDANUBE_URL")
+
 
 def get_product_by_sku_tn(sku):
     url = f"{API_URL}/{STORE_ID}/products?q={sku}"
