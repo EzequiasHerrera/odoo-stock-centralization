@@ -86,5 +86,5 @@ if __name__ == "__main__":
 #    registrar_webhook("order/paid")
 #    registrar_webhook("product/created")
 #    listar_webhooks()
-#    eliminar_webhook(32772772)  # reemplazá con el ID real
+#    eliminar_webhook(33796988)  # reemplazá con el ID real
     listar_webhooks()
