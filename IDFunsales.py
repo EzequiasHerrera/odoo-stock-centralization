@@ -13,35 +13,7 @@ def detectar_delimitador(archivo, encoding_detectado):
         dialecto = csv.Sniffer().sniff(muestra)
     return dialecto.delimiter
 
-def buscar_identidad(archivo_tiendanube, fun_id):
-    # Detectar encoding y delimitador
-    encoding_tn = detectar_encoding(archivo_tiendanube)
-    delimitador_tn = detectar_delimitador(archivo_tiendanube, encoding_tn)
-
-    print(f"Detectado encoding: {encoding_tn}, delimitador: '{delimitador_tn}'")
-
-    # Leer CSV completo
-    df = pd.read_csv(archivo_tiendanube, sep=delimitador_tn, encoding=encoding_tn)
-
-    # Buscar filas donde la columna I contenga el ID
-    coincidencias = df[df.iloc[:,8].astype(str).str.contains(fun_id)]
-
-    if coincidencias.empty:
-        print(f"No se encontró el ID {fun_id} en el archivo.")
-        return
-
-    # Tomar la primera coincidencia
-    fila = coincidencias.iloc[0]
-    sku_funsales = str(fila.iloc[8]).strip()
-
-    # Determinar posición del ID dentro del SKU
-    ids = [x for x in sku_funsales.split("|") if x.isdigit()]
-    if fun_id not in ids:
-        print(f"El ID {fun_id} no está en el SKU {sku_funsales}")
-        return
-    pos = ids.index(fun_id)
-
-    # Extraer descripción y valores según posición
+def extraer_info(fila, pos):
     if pos == 0:
         desc = str(fila.iloc[1]).strip()  # Columna B
         vals = str(fila.iloc[2]).strip()  # Columna C
@@ -52,10 +24,9 @@ def buscar_identidad(archivo_tiendanube, fun_id):
         desc = str(fila.iloc[5]).strip()  # Columna F
         vals = str(fila.iloc[6]).strip()  # Columna G
     else:
-        print("Posición de ID no soportada.")
-        return
+        return None, [], []
 
-    # Separar nombre y propiedades usando el ÚLTIMO "-"
+    # Separar nombre y propiedades usando el último "-"
     if " - " in desc:
         producto, props_str = desc.rsplit(" - ", 1)
         propiedades = props_str.split(" + ")
@@ -71,7 +42,9 @@ def buscar_identidad(archivo_tiendanube, fun_id):
     while len(valores) < 3:
         valores.append("")
 
-    # Construir filtro dinámico
+    return producto, propiedades, valores
+
+def buscar_sku_real(df, producto, propiedades, valores):
     filtro = (df.iloc[:,0].astype(str).str.strip() == producto)
 
     if propiedades[0]:
@@ -89,19 +62,93 @@ def buscar_identidad(archivo_tiendanube, fun_id):
     coincidencias_real = df[filtro]
 
     if not coincidencias_real.empty:
-        sku_real = coincidencias_real.iloc[0,8]
+        sku_real = str(coincidencias_real.iloc[0,8]).strip()
     else:
         sku_real = "NO_ENCONTRADO"
 
-    print("\nResultado:")
-    print(f"ID_Funsales: {fun_id}")
-    print(f"Producto: {producto}")
-    print(f"Propiedad_1: {propiedades[0]} -> {valores[0]}")
-    print(f"Propiedad_2: {propiedades[1]} -> {valores[1]}")
-    print(f"Propiedad_3: {propiedades[2]} -> {valores[2]}")
-    print(f"SKU_real: {sku_real}")
+    # Si empieza con "Comb-", generar versión sin prefijo
+    if sku_real.startswith("Comb-"):
+        sku_sin_comb = sku_real[5:]
+    else:
+        sku_sin_comb = ""
+
+    return sku_real, sku_sin_comb
+
+def procesar_archivo(archivo_csv, archivo_salida):
+    # Detectar encoding y delimitador
+    encoding_tn = detectar_encoding(archivo_csv)
+    delimitador_tn = detectar_delimitador(archivo_csv, encoding_tn)
+
+    print(f"Detectado encoding: {encoding_tn}, delimitador: '{delimitador_tn}'")
+
+    # Leer CSV completo
+    df = pd.read_csv(archivo_csv, sep=delimitador_tn, encoding=encoding_tn)
+
+    # Extraer todos los IDs únicos de FunSales
+    ids_funsales = set()
+    contador = 0
+    for sku in df.iloc[:,8].astype(str):
+        if "|" in sku:
+            for x in sku.split("|"):
+                if x.isdigit():
+                    if x not in ids_funsales:
+                        ids_funsales.add(x)
+                        contador += 1
+                        if contador % 10 == 0:
+                            print(f"IDs encontrados hasta ahora: {contador}")
+
+    ids_funsales = sorted(ids_funsales)
+    print(f"Se encontraron {len(ids_funsales)} IDs únicos de FunSales.")
+
+    resultados = []
+
+    for i, fun_id in enumerate(ids_funsales, start=1):
+        coincidencias = df[df.iloc[:,8].astype(str).str.contains(fun_id)]
+        if coincidencias.empty:
+            continue
+
+        fila = coincidencias.iloc[0]
+        sku_funsales = str(fila.iloc[8]).strip()
+        ids = [x for x in sku_funsales.split("|") if x.isdigit()]
+        if fun_id not in ids:
+            continue
+        pos = ids.index(fun_id)
+
+        producto, propiedades, valores = extraer_info(fila, pos)
+        if producto is None:
+            continue
+
+        sku_real, sku_sin_comb = buscar_sku_real(df, producto, propiedades, valores)
+
+        resultados.append({
+            "ID_Funsales": fun_id,
+            "Producto": producto,
+            "Propiedad_1": propiedades[0],
+            "Valor_1": valores[0],
+            "Propiedad_2": propiedades[1],
+            "Valor_2": valores[1],
+            "Propiedad_3": propiedades[2],
+            "Valor_3": valores[2],
+            "SKU_real": sku_real,
+            "SKU_sin_Comb": sku_sin_comb
+        })
+
+        # Mostrar progreso cada 10 IDs procesados
+        if i % 10 == 0:
+            print(f"Procesados {i} IDs...")
+
+        # Cada 500 IDs preguntar si continuar
+        if i % 500 == 0:
+            respuesta = input(f"Ya se procesaron {i} IDs. ¿Desea continuar? (s/n): ").strip().lower()
+            if respuesta != "s":
+                break
+
+    # Guardar resultados en Excel
+    df_resultados = pd.DataFrame(resultados)
+    df_resultados.to_excel(archivo_salida, index=False)
+    print(f"Archivo generado: {archivo_salida} con {len(df_resultados)} registros procesados.")
 
 if __name__ == "__main__":
-    archivo_tiendanube = "tiendanube_limpio.csv"
-    fun_id = input("Ingrese el ID numérico de FunSales: ").strip()
-    buscar_identidad(archivo_tiendanube, fun_id)
+    archivo_csv = input("Ingrese el nombre del archivo CSV (ej: tiendanube_limpio.csv): ").strip()
+    archivo_salida = "resultado_funsales.xlsx"
+    procesar_archivo(archivo_csv, archivo_salida)
