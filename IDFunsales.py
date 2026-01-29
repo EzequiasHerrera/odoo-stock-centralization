@@ -66,9 +66,12 @@ def buscar_sku_real(df, producto, propiedades, valores):
     else:
         sku_real = "NO_ENCONTRADO"
 
-    # Si empieza con "Comb-", generar versión sin prefijo
-    if sku_real.startswith("Comb-"):
-        sku_sin_comb = sku_real[5:]
+    # Si empieza con "Comb", eliminar el primer módulo hasta el primer "-"
+    if sku_real.startswith("Comb"):
+        if "-" in sku_real:
+            sku_sin_comb = sku_real.split("-", 1)[1]
+        else:
+            sku_sin_comb = ""
     else:
         sku_sin_comb = ""
 
