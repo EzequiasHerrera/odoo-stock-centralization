@@ -35,7 +35,7 @@ def generar_componentes(boms_file):
                 funsales_ids = funsales.iloc[:,0].astype(str).str.strip()
                 sku_row = funsales.loc[funsales_ids == id_val]
                 if sku_row.empty:
-                    print(f"ID {id_val} no encontrado en resultado_funsales")
+                    print(f"[INFO] ID {id_val}: no encontrado en resultado_funsales.xlsx")
                     continue
                 
                 # Tomar SKU: columna J (índice 9) o columna I (índice 8 si J está vacío)
@@ -46,7 +46,7 @@ def generar_componentes(boms_file):
                 odoo_skus = odoo.iloc[:,5].astype(str).str.strip()
                 odoo_row = odoo.loc[odoo_skus == sku]
                 if odoo_row.empty:
-                    print(f"SKU no encontrado en Odoo: {sku}")
+                    print(f"[INFO] SKU '{sku}' no encontrado en Odoo.xlsx → se marca como DESCONOCIDO")
                     prod_name = "DESCONOCIDO"
                 else:
                     prod_name = odoo_row.iloc[0,0]  # Columna A = nombre producto

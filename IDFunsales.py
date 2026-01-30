@@ -44,7 +44,7 @@ def extraer_info(fila, pos):
 
     return producto, propiedades, valores
 
-def buscar_sku_real(df, producto, propiedades, valores):
+def buscar_sku_real(df, producto, propiedades, valores, fun_id):
     filtro = (df.iloc[:,0].astype(str).str.strip() == producto)
 
     if propiedades[0]:
@@ -65,6 +65,7 @@ def buscar_sku_real(df, producto, propiedades, valores):
         sku_real = str(coincidencias_real.iloc[0,8]).strip()
     else:
         sku_real = "NO_ENCONTRADO"
+        print(f"[INFO] ID {fun_id}: No se encontró coincidencia exacta para producto '{producto}' con propiedades {propiedades} y valores {valores}")
 
     # Si empieza con "Comb", eliminar el primer módulo hasta el primer "-"
     if sku_real.startswith("Comb"):
@@ -72,8 +73,13 @@ def buscar_sku_real(df, producto, propiedades, valores):
             sku_sin_comb = sku_real.split("-", 1)[1]
         else:
             sku_sin_comb = ""
+            print(f"[INFO] ID {fun_id}: SKU '{sku_real}' comienza con 'Comb' pero no contiene '-' para separar módulos")
     else:
         sku_sin_comb = ""
+
+    # Caso especial: SKU termina en guion
+    if sku_real.endswith("-"):
+        print(f"[INFO] ID {fun_id}: SKU '{sku_real}' termina en '-' según codificación, aceptado pero marcado como posible incompleto")
 
     return sku_real, sku_sin_comb
 
@@ -108,20 +114,23 @@ def procesar_archivo(archivo_csv, archivo_salida):
     for i, fun_id in enumerate(ids_funsales, start=1):
         coincidencias = df[df.iloc[:,8].astype(str).str.contains(fun_id)]
         if coincidencias.empty:
+            print(f"[INFO] ID {fun_id}: No aparece en ninguna fila del CSV")
             continue
 
         fila = coincidencias.iloc[0]
         sku_funsales = str(fila.iloc[8]).strip()
         ids = [x for x in sku_funsales.split("|") if x.isdigit()]
         if fun_id not in ids:
+            print(f"[INFO] ID {fun_id}: No está dentro del SKU '{sku_funsales}'")
             continue
         pos = ids.index(fun_id)
 
         producto, propiedades, valores = extraer_info(fila, pos)
         if producto is None:
+            print(f"[INFO] ID {fun_id}: No se pudo extraer información de producto/propiedades")
             continue
 
-        sku_real, sku_sin_comb = buscar_sku_real(df, producto, propiedades, valores)
+        sku_real, sku_sin_comb = buscar_sku_real(df, producto, propiedades, valores, fun_id)
 
         resultados.append({
             "ID_Funsales": fun_id,
