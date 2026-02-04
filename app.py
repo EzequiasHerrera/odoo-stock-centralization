@@ -15,7 +15,8 @@ from integration.idempotencia import verificar_idempotencia
 from tiendanube.orders_service_tn import extract_order_data, get_order_by_id
 from tiendanube.products_service_tn import update_stock_by_sku
 from odoo.connect_odoo import conectar_con_reintentos
-from odoo.products_service_odoo import get_affected_kits_by_components
+#from odoo.products_service_odoo import get_affected_kits_by_components
+from odoo.precarga_boms import precargar_boms
 from odoo.clients_service_odoo import get_client_id_by_dni
 from odoo.sync_api import ajustes_inventario_pendientes
 from odoo.orders_service_odoo import (
@@ -121,6 +122,12 @@ def worker_loop():
         return
 
     logging.info("👷 Worker conectado a Odoo")
+
+    # Precargar BOMs una sola vez al inicio del servidor
+    global BOM_CACHE
+    BOM_CACHE = precargar_boms(models, db, uid, password)
+    logging.info("📦 BOM_CACHE inicializado y listo para consultas")
+
     while True:
         try:
             item = r.brpop(QUEUE_KEY, timeout=5)
@@ -129,10 +136,10 @@ def worker_loop():
                 logging.info(f"📥 Procesando orden {order_id} desde {QUEUE_KEY}")
                 if order_id.startswith("S"):
                     logging.info(f"🔁 Orden {order_id} detectada como Odoo")
-                    procesar_orden_odoo(order_id, models, db, uid, password)
+                    procesar_orden_odoo(order_id, models, db, uid, password, BOM_CACHE)
                 else:
                     logging.info(f"🔁 Orden {order_id} detectada como TiendaNube")
-                    procesar_orden(order_id, models, db, uid, password)
+                    procesar_orden(order_id, models, db, uid, password, BOM_CACHE)
                 logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
@@ -182,7 +189,7 @@ def ajuste_inventario():
         time.sleep(60)
 
 # 🔧 Lógica de procesamiento de orden
-def procesar_orden(order_id, models, db, uid, password):
+def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
     if not verificar_idempotencia(order_id, r):
         logging.warning(f"⚠️ Orden {order_id} ya fue procesada previamente. Abortando.")
         return
@@ -218,7 +225,10 @@ def procesar_orden(order_id, models, db, uid, password):
         order_name = get_order_name_by_id(order_sale_id_odoo, models, db, uid, password)
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
         skus_componentes = [p["default_code"] for p in affected_products]
-        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+#        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+        affected_kits = []
+        for sku in skus_componentes:
+            affected_kits.extend(BOM_CACHE.get(sku, []))
 
         final_sku_list = affected_products + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
@@ -242,7 +252,7 @@ def procesar_orden(order_id, models, db, uid, password):
 
 
 # 🔧 Lógica de procesamiento de orden
-def procesar_orden_odoo(order_name, models, db, uid, password):
+def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
     if not verificar_idempotencia(order_name, r):
         logging.warning(f"⚠️ Orden {order_name} ya fue procesada previamente. Abortando.")
         return
@@ -252,7 +262,10 @@ def procesar_orden_odoo(order_name, models, db, uid, password):
 
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
         skus_componentes = [p["default_code"] for p in affected_products]
-        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+#        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+        affected_kits = []
+        for sku in skus_componentes:
+            affected_kits.extend(BOM_CACHE.get(sku, []))
 
         final_sku_list = affected_products + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
