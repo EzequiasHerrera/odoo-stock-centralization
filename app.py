@@ -234,16 +234,45 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
+        # 🔄 Refrescar stock desde Odoo para la lista final
+        product_ids = [item["id"] for item in lista_final_sin_duplicados if "id" in item]
+        if product_ids:
+            productos_actualizados = models.execute_kw(
+                db, uid, password,
+                "product.product", "read",
+                [product_ids],
+                {"fields": ["id", "default_code", "virtual_available"], "recompute": True}
+            )
+            productos_por_id = {p["id"]: p for p in productos_actualizados}
+            for item in lista_final_sin_duplicados:
+                if "id" in item and item["id"] in productos_por_id:
+                    item["virtual_available"] = productos_por_id[item["id"]]["virtual_available"]
+
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
+
+            # ⚠️ No actualizar SKUs de FunSales
+            if "|" in sku:
+                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales)")
+                continue
+
             if impactar_tn:
                 update_stock_by_sku(sku, stock)
                 logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
+
+#        for producto in lista_final_sin_duplicados:
+#            sku = producto.get("default_code", "N/A")
+#            stock = producto.get("virtual_available", 0.0)
+#            if impactar_tn:
+#                update_stock_by_sku(sku, stock)
+#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+#            else:
+#                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_id} procesada exitosamente.")
 
@@ -271,16 +300,43 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
+        # 🔄 Refrescar stock desde Odoo para la lista final
+        product_ids = [item["id"] for item in lista_final_sin_duplicados if "id" in item]
+        if product_ids:
+            productos_actualizados = models.execute_kw(
+                db, uid, password,
+                "product.product", "read",
+                [product_ids],
+                {"fields": ["id", "default_code", "virtual_available"], "recompute": True}
+            )
+            productos_por_id = {p["id"]: p for p in productos_actualizados}
+            for item in lista_final_sin_duplicados:
+                if "id" in item and item["id"] in productos_por_id:
+                    item["virtual_available"] = productos_por_id[item["id"]]["virtual_available"]
+
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
+
+            # ⚠️ No actualizar SKUs de FunSales
+            if "|" in sku:
+                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales)")
+                continue
+
             if impactar_tn:
                 update_stock_by_sku(sku, stock)
                 logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
+
+
+#            if impactar_tn:
+#                update_stock_by_sku(sku, stock)
+#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+#            else:
+#                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_name} procesada exitosamente.")
 

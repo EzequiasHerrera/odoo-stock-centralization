@@ -65,6 +65,7 @@ def precargar_boms(models, db, uid, password):
             continue
 
         kit_info = {
+            "id": kit_id,
             "default_code": productos_por_id[kit_id]["default_code"],
             "virtual_available": productos_por_id[kit_id]["virtual_available"]
         }
@@ -76,7 +77,12 @@ def precargar_boms(models, db, uid, password):
             if not comp_data:
                 continue
             sku_componente = comp_data["default_code"]
-            BOM_CACHE.setdefault(sku_componente, []).append(kit_info)
+            BOM_CACHE.setdefault(sku_componente, []).append({
+                "id": kit_id,
+                "default_code": kit_info["default_code"],
+                "virtual_available": kit_info["virtual_available"]
+            })
+
 
     logging.info(f"✅ Precarga completa. BOMs procesadas: {len(todas_las_boms)}")
     logging.info(f"📦 Componentes indexados en BOM_CACHE: {len(BOM_CACHE)}")
