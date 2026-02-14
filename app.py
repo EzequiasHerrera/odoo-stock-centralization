@@ -241,7 +241,7 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
                 db, uid, password,
                 "product.product", "read",
                 [product_ids],
-                {"fields": ["id", "default_code", "virtual_available"], "recompute": True}
+                {"fields": ["id", "default_code", "virtual_available"]}
             )
             productos_por_id = {p["id"]: p for p in productos_actualizados}
             for item in lista_final_sin_duplicados:
@@ -307,7 +307,7 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
                 db, uid, password,
                 "product.product", "read",
                 [product_ids],
-                {"fields": ["id", "default_code", "virtual_available"], "recompute": True}
+                {"fields": ["id", "default_code", "virtual_available"]}
             )
             productos_por_id = {p["id"]: p for p in productos_actualizados}
             for item in lista_final_sin_duplicados:
