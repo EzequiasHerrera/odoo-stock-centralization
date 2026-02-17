@@ -256,7 +256,7 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
 
             # ⚠️ No actualizar SKUs de FunSales
             if "|" in sku:
-                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales)")
+                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
                 continue
 
             if impactar_tn:
@@ -264,15 +264,6 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
                 logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
-
-#        for producto in lista_final_sin_duplicados:
-#            sku = producto.get("default_code", "N/A")
-#            stock = producto.get("virtual_available", 0.0)
-#            if impactar_tn:
-#                update_stock_by_sku(sku, stock)
-#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
-#            else:
-#                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_id} procesada exitosamente.")
 
@@ -322,7 +313,7 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
 
             # ⚠️ No actualizar SKUs de FunSales
             if "|" in sku:
-                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales)")
+                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
                 continue
 
             if impactar_tn:
