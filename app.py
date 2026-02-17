@@ -181,7 +181,7 @@ def ajuste_inventario():
         try:
 #            logging.info("⏱ Ejecutando tarea periódica...")
             if impactar_tn: 
-                ajustes_inventario_pendientes(models, db, uid, password)
+                ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE)
             else:
                 logging.info("⚠️ Simulación: NO se hace ajuste de inventario")
         except Exception as e:
