@@ -177,6 +177,12 @@ def ajuste_inventario():
         return
 
     logging.info("🚀 Ajuste de inventario - Conectado a Odoo")
+
+    # 🔄 Precargar BOM_CACHE aquí
+    global BOM_CACHE
+    BOM_CACHE = precargar_boms(models, db, uid, password)
+    logging.info("📦 BOM_CACHE inicializado para tarea de ajuste de inventario")
+
     while True:
         try:
 #            logging.info("⏱ Ejecutando tarea periódica...")
