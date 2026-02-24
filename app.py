@@ -93,18 +93,17 @@ def webhook():
 @app.route("/webhook_odoo_confirmacion", methods=["POST"])
 def webhook_odoo_confirmacion():
     try:
-        # Forzar interpretación como JSON aunque falte el header correcto
         data = request.get_json(force=True)
-        order_name = data.get("name")
+        order_name = data.get("name") or data.get("id")
 
         if not order_name:
-            logging.warning(f"❌ Campo 'name' faltante en payload: {data}")
-            return "❌ name faltante", 400
+            logging.warning(f"❌ Campo 'name' o 'id' faltante en payload: {data}")
+            return "❌ name/id faltante", 400
 
         logging.info(f"📨 Webhook recibido desde Odoo: orden {order_name}")
 
-        # Encolar la orden para procesamiento posterior
-        threading.Thread(target=encolar_orden, args=(order_name,), daemon=True).start()
+        # Encolar directamente (más simple y confiable que con hilo)
+        encolar_orden(order_name)
 
         return "✅ Webhook recibido", 200
 
