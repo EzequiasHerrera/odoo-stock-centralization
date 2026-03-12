@@ -34,7 +34,6 @@ def procesar_stock():
 
     antes = len(stock)
     stock = stock[~stock["default_code"].str.startswith("Comb")]
-    stock = stock[~stock["default_code"].str.startswith("Outl")]
     stock = stock[~stock["default_code"].apply(es_funsales)]
     print(f"Filtrado básico: {antes - len(stock)} registros eliminados, {len(stock)} restantes.")
 
