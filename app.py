@@ -111,6 +111,29 @@ def webhook_odoo_confirmacion():
         logging.exception(f"💥 Error en webhook_odoo_confirmacion: {str(e)}")
         return "💥 Error interno", 500
 
+@app.route("/webhook_odoo_cancelacion", methods=["POST"])
+def webhook_odoo_cancelacion():
+    try:
+        data = request.get_json(force=True)
+        order_name = data.get("name") or data.get("id")
+
+        if not order_name:
+            logging.warning(f"❌ Campo 'name' o 'id' faltante en payload: {data}")
+            return "❌ name/id faltante", 400
+
+        # Agregar la "C" al final del order_name
+        order_name_cancel = f"{order_name}C"
+        logging.info(f"📨 Webhook recibido desde Odoo (cancelación): orden {order_name_cancel}")
+
+        # Encolar directamente
+        encolar_orden(order_name_cancel)
+
+        return "✅ Webhook de cancelación recibido", 200
+
+    except Exception as e:
+        logging.exception(f"💥 Error en webhook_odoo_cancelacion: {str(e)}")
+        return "💥 Error interno", 500
+
 
 # 🔁 Función que procesa órdenes desde Redis
 def worker_loop():
@@ -133,17 +156,29 @@ def worker_loop():
             if item:
                 _, order_id = item
                 logging.info(f"📥 Procesando orden {order_id} desde {QUEUE_KEY}")
+
                 if order_id.startswith("S"):
-                    logging.info(f"🔁 Orden {order_id} detectada como Odoo")
-                    procesar_orden_odoo(order_id, models, db, uid, password, BOM_CACHE)
+                    if order_id.endswith("C"):
+                        logging.info(f"🔁 Orden {order_id} detectada como CANCELACIÓN en Odoo")
+                        # Remover la "C" final antes de enviar a Odoo
+                        order_name = order_id[:-1]
+                    else:
+                        logging.info(f"🔁 Orden {order_id} detectada como CONFIRMACIÓN en Odoo")
+                        order_name = order_id
+
+                    procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE)
+
                 else:
                     logging.info(f"🔁 Orden {order_id} detectada como TiendaNube")
                     procesar_orden(order_id, models, db, uid, password, BOM_CACHE)
+
                 logging.info(f"✅ Orden {order_id} procesada")
         except Exception as e:
             logging.exception(f"💥 Error en worker: {str(e)}")
+
         time.sleep(30)
         logging.info("👷 Worker buscando ordenes de venta pendientes.")
+
 
 def encolar_orden(order_id):
     logging.info(f"🧵 Hilo encolar_orden iniciado para orden {order_id}")
