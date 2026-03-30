@@ -161,11 +161,12 @@ def worker_loop():
                     if order_id.endswith("C"):
                         logging.info(f"🔁 Orden {order_id} detectada como CANCELACIÓN en Odoo")
                         # Remover la "C" final antes de enviar a Odoo
-                        order_name = order_id[:-1]
+                        # order_name = order_id[:-1]
                     else:
                         logging.info(f"🔁 Orden {order_id} detectada como CONFIRMACIÓN en Odoo")
-                        order_name = order_id
+                        # order_name = order_id
 
+                    order_name = order_id
                     procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE)
 
                 else:
@@ -318,11 +319,15 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
         return
 
     try:
-        logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
+        if order_name.endswith("C"):
+            # Remover la "C" final antes de enviar a Odoo
+            order_name = order_name[:-1]
+            logging.info(f"✅ Orden de venta cancelada desde Odoo: {order_name}")
+        else:
+            logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
 
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
         skus_componentes = [p["default_code"] for p in affected_products]
-#        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
         affected_kits = []
         for sku in skus_componentes:
             affected_kits.extend(BOM_CACHE.get(sku, []))
