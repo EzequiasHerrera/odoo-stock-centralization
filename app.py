@@ -277,16 +277,24 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
 
         order_name = get_order_name_by_id(order_sale_id_odoo, models, db, uid, password)
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
-#        skus_componentes = [p["default_code"] for p in affected_products]
-        skus_componentes = [
-            p["default_code"] for p in affected_products
-            if p["default_code"] not in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
-        ]
-        affected_kits = []
-        for sku in skus_componentes:
-            affected_kits.extend(BOM_CACHE.get(sku, []))
 
+        # Filtrar productos especiales
+        SKUS_ESPECIALES = ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
+        skus_componentes = [
+            p for p in affected_products
+            if p["default_code"] not in SKUS_ESPECIALES
+        ]
+
+        # Expandir kits (convertir cada SKU en dict con default_code)
+        affected_kits = []
+        for prod in skus_componentes:
+            for sku in BOM_CACHE.get(prod["default_code"], []):
+                affected_kits.append({"default_code": sku})
+
+        # Construir lista final solo con productos válidos
         final_sku_list = skus_componentes + affected_kits
+
+        # Eliminar duplicados por default_code
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
@@ -342,17 +350,24 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
             logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
 
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
-#        skus_componentes = [p["default_code"] for p in affected_products]
+
+        # Filtrar productos especiales
+        SKUS_ESPECIALES = ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
         skus_componentes = [
-            p["default_code"] for p in affected_products
-            if p["default_code"] not in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
+            p for p in affected_products
+            if p["default_code"] not in SKUS_ESPECIALES
         ]
 
+        # Expandir kits (convertir cada SKU en dict con default_code)
         affected_kits = []
-        for sku in skus_componentes:
-            affected_kits.extend(BOM_CACHE.get(sku, []))
+        for prod in skus_componentes:
+            for sku in BOM_CACHE.get(prod["default_code"], []):
+                affected_kits.append({"default_code": sku})
 
+        # Construir lista final solo con productos válidos
         final_sku_list = skus_componentes + affected_kits
+
+        # Eliminar duplicados por default_code
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
@@ -386,13 +401,6 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
                 logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
-
-
-#            if impactar_tn:
-#                update_stock_by_sku(sku, stock)
-#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
-#            else:
-#                logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
         logging.info(f"🎯 Orden {order_name} procesada exitosamente.")
 
