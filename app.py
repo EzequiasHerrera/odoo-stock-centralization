@@ -278,23 +278,15 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
         order_name = get_order_name_by_id(order_sale_id_odoo, models, db, uid, password)
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
 
-        # Filtrar productos especiales
-        SKUS_ESPECIALES = ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
-        skus_componentes = [
-            p for p in affected_products
-            if p["default_code"] not in SKUS_ESPECIALES
-        ]
+        skus_componentes = [p["default_code"] for p in affected_products]
 
+ 
         # Expandir kits (convertir cada SKU en dict con default_code)
         affected_kits = []
-        for prod in skus_componentes:
-            for sku in BOM_CACHE.get(prod["default_code"], []):
-                affected_kits.append({"default_code": sku})
+        for sku in skus_componentes:
+            affected_kits.extend(BOM_CACHE.get(sku, []))
 
-        # Construir lista final solo con productos válidos
-        final_sku_list = skus_componentes + affected_kits
-
-        # Eliminar duplicados por default_code
+        final_sku_list = affected_products + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
@@ -321,6 +313,11 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
             # ⚠️ No actualizar SKUs de FunSales
             if "|" in sku:
                 logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
+                continue
+    
+            # ⚠️ No actualizar SKUs especiales (descuento/envío)
+            if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:
+                logging.info(f"⏭️ SKU {sku} omitido (línea especial de descuento/envío). Stock actual: {stock}")
                 continue
 
             if impactar_tn:
@@ -350,24 +347,14 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
             logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
 
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
-
-        # Filtrar productos especiales
-        SKUS_ESPECIALES = ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
-        skus_componentes = [
-            p for p in affected_products
-            if p["default_code"] not in SKUS_ESPECIALES
-        ]
+        skus_componentes = [p["default_code"] for p in affected_products]
 
         # Expandir kits (convertir cada SKU en dict con default_code)
         affected_kits = []
-        for prod in skus_componentes:
-            for sku in BOM_CACHE.get(prod["default_code"], []):
-                affected_kits.append({"default_code": sku})
+        for sku in skus_componentes:
+            affected_kits.extend(BOM_CACHE.get(sku, []))
 
-        # Construir lista final solo con productos válidos
-        final_sku_list = skus_componentes + affected_kits
-
-        # Eliminar duplicados por default_code
+        final_sku_list = affected_products + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
@@ -394,6 +381,11 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
             # ⚠️ No actualizar SKUs de FunSales
             if "|" in sku:
                 logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
+                continue
+
+            # ⚠️ No actualizar SKUs especiales (descuento/envío)
+            if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:
+                logging.info(f"⏭️ SKU {sku} omitido (línea especial de descuento/envío). Stock actual: {stock}")
                 continue
 
             if impactar_tn:
