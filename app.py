@@ -286,7 +286,7 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
         for sku in skus_componentes:
             affected_kits.extend(BOM_CACHE.get(sku, []))
 
-        final_sku_list = affected_products + affected_kits
+        final_sku_list = skus_componentes + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
@@ -352,7 +352,7 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
         for sku in skus_componentes:
             affected_kits.extend(BOM_CACHE.get(sku, []))
 
-        final_sku_list = affected_products + affected_kits
+        final_sku_list = skus_componentes + affected_kits
         skus_unicos = {item["default_code"]: item for item in final_sku_list}
         lista_final_sin_duplicados = list(skus_unicos.values())
 
