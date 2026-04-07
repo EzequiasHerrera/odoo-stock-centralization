@@ -80,6 +80,27 @@ def eliminar_webhook(webhook_id):
         print("📄 Detalles:", response.text)
 
 
+def obtener_orden_por_id(order_id):
+    url = f"https://api.tiendanube.com/v1/{STORE_ID}/orders/{order_id}"
+    headers = {
+        "Authentication": f"bearer {ACCESS_TOKEN}",
+        "User-Agent": "Test Odoo (ezequiasherrera99@gmail.com)",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        orden = response.json()
+        print("✅ Orden obtenida correctamente")
+        # Mostrar todo el payload en consola
+        import json
+        print(json.dumps(orden, indent=4, ensure_ascii=False))
+        return orden
+    else:
+        print(f"❌ Error al obtener la orden {order_id}")
+        print("🔍 Código:", response.status_code)
+        print("📄 Detalles:", response.text)
+        return None
 
 
 if __name__ == "__main__":
@@ -87,4 +108,6 @@ if __name__ == "__main__":
 #    registrar_webhook("product/created")
 #    listar_webhooks()
 #    eliminar_webhook(34749921)  # reemplazá con el ID real
-    listar_webhooks()
+#    listar_webhooks()
+    orden_id = 1941130901
+    obtener_orden_por_id(orden_id)

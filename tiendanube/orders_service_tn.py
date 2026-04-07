@@ -47,13 +47,20 @@ def extract_order_data(order_data):
             'quantity': prod.get('quantity'),
             'price': prod.get('price'),
         })
-    
+
+    # Descuentos y envío
+    discount_total = float(order_data.get('discount', 0))
+    shipping_cost = float(order_data.get('shipping_cost_customer', 0))
+
     # Retornar objeto unificado
     return {
         'client_data': client_data,
         'shipping_data': shipping_data,
-        'products_data': products
+        'products_data': products,
+        'discount_total': discount_total,
+        'shipping_cost': shipping_cost
     }
+
 
 def get_order_by_id(order_id):
     url = f"{TIENDANUBE_URL}/{STORE_ID}/orders/{order_id}"

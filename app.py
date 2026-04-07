@@ -260,13 +260,28 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
             cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price, models, db, uid, password)
             logging.info(f"➕ Producto agregado: SKU={sku}, cantidad={quantity}, precio={price}")
 
+        # Agregar descuento global si existe
+        discount_total = order_data.get("discount_total", 0)
+        if discount_total > 0:
+            cargar_producto_a_orden_de_venta(order_sale_id_odoo, "DESCUENTO_GLOBAL", 1, -discount_total, models, db, uid, password)
+            logging.info(f"💸 Descuento global aplicado: -{discount_total}")
+
+        # Agregar costo de envío si existe
+        shipping_cost = order_data.get("shipping_cost", 0)
+        if shipping_cost > 0:
+            cargar_producto_a_orden_de_venta(order_sale_id_odoo, "COSTO_ENVIO", 1, shipping_cost, models, db, uid, password)
+            logging.info(f"🚚 Costo de envío agregado: {shipping_cost}")
+
         confirm_sales_order(order_sale_id_odoo, models, db, uid, password)
         logging.info(f"✅ Orden de venta confirmada en Odoo: {order_sale_id_odoo}")
 
         order_name = get_order_name_by_id(order_sale_id_odoo, models, db, uid, password)
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
-        skus_componentes = [p["default_code"] for p in affected_products]
-#        affected_kits = get_affected_kits_by_components(skus_componentes, models, db, uid, password)
+#        skus_componentes = [p["default_code"] for p in affected_products]
+        skus_componentes = [
+            p["default_code"] for p in affected_products
+            if p["default_code"] not in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
+        ]
         affected_kits = []
         for sku in skus_componentes:
             affected_kits.extend(BOM_CACHE.get(sku, []))
@@ -327,7 +342,12 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
             logging.info(f"✅ Orden de venta a procesar desde Odoo: {order_name}")
 
         affected_products = get_skus_and_stock_from_order(order_name, models, db, uid, password)
-        skus_componentes = [p["default_code"] for p in affected_products]
+#        skus_componentes = [p["default_code"] for p in affected_products]
+        skus_componentes = [
+            p["default_code"] for p in affected_products
+            if p["default_code"] not in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]
+        ]
+
         affected_kits = []
         for sku in skus_componentes:
             affected_kits.extend(BOM_CACHE.get(sku, []))
