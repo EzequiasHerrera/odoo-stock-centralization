@@ -51,6 +51,7 @@ def extract_order_data(order_data):
     # Descuentos y envío
     discount_total = float(order_data.get('discount', 0))
     shipping_cost = float(order_data.get('shipping_cost_customer', 0))
+    order_number = order_data.get("number") or ""
 
     # Retornar objeto unificado
     return {
@@ -58,7 +59,8 @@ def extract_order_data(order_data):
         'shipping_data': shipping_data,
         'products_data': products,
         'discount_total': discount_total,
-        'shipping_cost': shipping_cost
+        'shipping_cost': shipping_cost,
+        'order_number': order_number
     }
 
 

@@ -1,21 +1,23 @@
 import logging
 
-def create_sales_order(client_id, date, models, db, uid, password):
+def create_sales_order(client_id, date, models, db, uid, password, order_number=None):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo establecer conexión con Odoo para crear orden.")
         return None
 
     try:
+        client_order_ref = f"TiendaNube - #{order_number}" if order_number else "TiendaNube"
         order_id = models.execute_kw(
             db, uid, password,
             "sale.order", "create",
-            [{"partner_id": client_id,
-              "date_order": date,
-              "client_order_ref": 'TiendaNube'       # Identifico el Origen
+            [{
+                "partner_id": client_id,
+                "date_order": date,
+                "client_order_ref": client_order_ref
             }]
         )
-        logging.info(f"🛒 Orden creada con ID: {order_id}")
         return order_id
+
     except Exception as e:
         logging.exception(f"💥 Error creando orden de venta: {str(e)}")
         return None

@@ -250,8 +250,10 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
 
         client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email, models, db, uid, password)
         date = datetime.now()
-        order_sale_id_odoo = create_sales_order(client_id_odoo, date, models, db, uid, password)
-        logging.info(f"🧾 Orden de venta creada en Odoo: {order_sale_id_odoo}")
+        
+        order_number = order_data.get("order_number") or ""
+        order_sale_id_odoo = create_sales_order(client_id_odoo, date, models, db, uid, password, order_number)
+        logging.info(f"🧾 Orden de venta creada en Odoo: {order_sale_id_odoo} (TiendaNube #{order_number})")
 
         for producto in order_data.get("products_data", []):
             sku = producto.get("sku")
