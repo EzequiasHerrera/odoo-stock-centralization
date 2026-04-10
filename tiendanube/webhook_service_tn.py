@@ -106,9 +106,9 @@ def obtener_orden_por_id(order_id):
 if __name__ == "__main__":
 #    registrar_webhook("order/paid")
 #    registrar_webhook("product/created")
-    listar_webhooks()
-#    eliminar_webhook(35789594)  # reemplazá con el ID real
 #    listar_webhooks()
+#    eliminar_webhook(35793355)  # reemplazá con el ID real
+    listar_webhooks()
 
 #    orden_id = 1941130901
 #    obtener_orden_por_id(orden_id)
