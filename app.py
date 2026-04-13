@@ -308,14 +308,20 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
 
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
+        # Ordenar lista: primero SKUs que NO son de Funsales (no contienen "|"), luego los de Funsales
+        lista_final_sin_duplicados = sorted(
+            lista_final_sin_duplicados,
+            key=lambda item: "|" in item["default_code"]
+        )
+
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
 
             # ⚠️ No actualizar SKUs de FunSales
-            if "|" in sku:
-                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
-                continue
+#            if "|" in sku:
+#                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
+#                continue
     
             # ⚠️ No actualizar SKUs especiales (descuento/envío)
             if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:
@@ -376,14 +382,20 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
 
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_sin_duplicados]}")
 
+        # Ordenar lista: primero SKUs que NO son de Funsales (no contienen "|"), luego los de Funsales
+        lista_final_sin_duplicados = sorted(
+            lista_final_sin_duplicados,
+            key=lambda item: "|" in item["default_code"]
+        )
+
         for producto in lista_final_sin_duplicados:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
 
             # ⚠️ No actualizar SKUs de FunSales
-            if "|" in sku:
-                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
-                continue
+#            if "|" in sku:
+#                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
+#                continue
 
             # ⚠️ No actualizar SKUs especiales (descuento/envío)
             if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:

@@ -123,14 +123,20 @@ def ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE):
 
         logging.info(f"📦 Lista final de SKUs a actualizar: {[p['default_code'] for p in lista_final_actualizacion]}")
 
+        # Ordenar lista: primero SKUs que NO son de Funsales (no contienen "|"), luego los de Funsales
+        lista_final_actualizacion = sorted(
+            lista_final_actualizacion,
+            key=lambda item: "|" in item["default_code"]
+        )
+
         for producto in lista_final_actualizacion:
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
 
             # ⚠️ No actualizar SKUs de FunSales
-            if "|" in sku:
-                logging.info(f"⏭️ SKU {sku} afectado, omitido (FunSales). Stock actual: {stock}")
-                continue
+#            if "|" in sku:
+#                logging.info(f"⏭️ SKU {sku} afectado, omitido (FunSales). Stock actual: {stock}")
+#                continue
 
             update_stock_by_sku(sku, stock)
             logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
