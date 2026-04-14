@@ -60,6 +60,10 @@ def get_product_by_sku_tn(sku):
 
 def update_stock_by_sku(sku, stock):
     product = get_product_by_sku_tn(sku);
+    if not product:
+        print(f"❌ No se encontró producto con SKU {sku} en TiendaNube. No se actualizó stock.")
+        return
+
     id_padre = product["id_padre"]
     id = product["id"]
     
@@ -79,7 +83,7 @@ def update_stock_by_sku(sku, stock):
     response = requests.post(url, headers=headers, data=json.dumps(payload))
 
     if response.status_code == 200:
-        print(url)
+#        print(url)
         print(f"✅ Stock actualizado a {stock} para producto {product['nombre']}")
     else:
         print(f"❌ Error al actualizar stock: {response.status_code} - {response.text}")

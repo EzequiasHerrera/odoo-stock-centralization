@@ -133,6 +133,11 @@ def ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE):
             sku = producto.get("default_code", "N/A")
             stock = producto.get("virtual_available", 0.0)
 
+            # ⚠️ No actualizar SKUs especiales (descuento/envío)
+            if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:
+                logging.info(f"⏭️ SKU {sku} omitido (línea especial de descuento/envío). Stock actual: {stock}")
+                continue
+
             # ⚠️ No actualizar SKUs de FunSales
 #            if "|" in sku:
 #                logging.info(f"⏭️ SKU {sku} afectado, omitido (FunSales). Stock actual: {stock}")

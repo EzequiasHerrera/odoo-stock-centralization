@@ -7,11 +7,33 @@ from PyQt5.QtWidgets import (
 )
 from odoo.connect_odoo import conectar_con_reintentos
 from odoo.orders_service_odoo import (
-    create_sales_order,
     confirm_sales_order,
     cargar_producto_a_orden_de_venta
 )
 from odoo.clients_service_odoo import get_client_id_by_dni
+
+# Función para crear la orden de venta desde AppVentas
+def create_sales_order(client_id, date, models, db, uid, password, order_number=None):
+    if not all([models, db, uid, password]):
+        logging.error("❌ No se pudo establecer conexión con Odoo para crear orden.")
+        return None
+
+    try:
+        client_order_ref = f"AppVentas - #{order_number}" if order_number else "AppVentas"
+        order_id = models.execute_kw(
+            db, uid, password,
+            "sale.order", "create",
+            [{
+                "partner_id": client_id,
+                "date_order": date,
+                "client_order_ref": client_order_ref
+            }]
+        )
+        return order_id
+
+    except Exception as e:
+        logging.exception(f"💥 Error creando orden de venta: {str(e)}")
+        return None
 
 # Función para obtener productos masivamente SIN stock
 def get_all_products(models, db, uid, password):
