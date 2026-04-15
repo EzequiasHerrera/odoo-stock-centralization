@@ -1,3 +1,5 @@
+import time
+import logging
 import os
 import requests
 import json
@@ -80,10 +82,22 @@ def update_stock_by_sku(sku, stock):
         "id": id
     }
 
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    max_retries = 5
+    retries = 0
+    while retries < max_retries:
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
 
-    if response.status_code == 200:
-#        print(url)
-        print(f"✅ Stock actualizado a {stock} para producto {product['nombre']}")
-    else:
-        print(f"❌ Error al actualizar stock: {response.status_code} - {response.text}")
+        if response.status_code == 200:
+            logging.info(f"✅ Stock actualizado a {stock} para producto {product['nombre']} (SKU={sku})")
+            return
+        elif response.status_code == 429:
+            wait_time = 2 ** retries  # backoff exponencial: 1s, 2s, 4s, 8s, 16s
+            logging.warning(f"⚠️ Rate limit alcanzado (429) para SKU={sku}. Reintentando en {wait_time} segundos...")
+            time.sleep(wait_time)
+            retries += 1
+        else:
+            logging.error(f"❌ Error al actualizar stock SKU={sku}: {response.status_code} - {response.text}")
+            return
+
+    # Si llega acá, agotó los intentos
+    logging.error(f"💥 No se pudo actualizar stock de SKU={sku} después de {max_retries} intentos. Se continúa con el resto.")

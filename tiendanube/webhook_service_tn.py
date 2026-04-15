@@ -110,5 +110,6 @@ if __name__ == "__main__":
 #    eliminar_webhook(35793355)  # reemplazá con el ID real
     listar_webhooks()
 
+#       OBTENER PAYLOAD DE UNA VENTA DE TIENDANUBE
 #    orden_id = 1941130901
 #    obtener_orden_por_id(orden_id)
