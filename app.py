@@ -330,7 +330,9 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
 
             if impactar_tn:
                 update_stock_by_sku(sku, stock)
-                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+                time.sleep(0.5)
+
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 
@@ -404,7 +406,9 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
 
             if impactar_tn:
                 update_stock_by_sku(sku, stock)
-                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+                time.sleep(0.5)
+
             else:
                 logging.info(f"⚠️ Simulación: NO se actualizó en TiendaNube. SKU={sku}, stock={stock}")
 

@@ -1,3 +1,4 @@
+import time
 import requests
 import logging
 
@@ -144,7 +145,8 @@ def ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE):
 #                continue
 
             update_stock_by_sku(sku, stock)
-            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+#            logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
+            time.sleep(0.5)
 
         logging.info(f"🔄 Ajuste de Inventario pendiente terminado correctamente!")
 
