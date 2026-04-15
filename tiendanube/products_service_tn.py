@@ -63,7 +63,7 @@ def get_product_by_sku_tn(sku):
 def update_stock_by_sku(sku, stock):
     product = get_product_by_sku_tn(sku);
     if not product:
-        print(f"❌ No se encontró producto con SKU {sku} en TiendaNube. No se actualizó stock.")
+        logging.warning(f"❌ No se encontró producto con SKU {sku} en TiendaNube. No se actualizó stock.")
         return
 
     id_padre = product["id_padre"]
