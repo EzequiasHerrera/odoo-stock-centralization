@@ -259,6 +259,12 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
             sku = producto.get("sku")
             quantity = int(producto.get("quantity", 0))
             price = float(producto["price"]) if producto.get("price") else 0.0
+
+            # 🚫 Validación: SKU faltante
+            if not sku or not isinstance(sku, str):
+                logging.error(f"❌ Producto inválido en orden {order_id}: SKU vacío o incorrecto. Se omitió este registro.")
+                continue
+
             cargar_producto_a_orden_de_venta(order_sale_id_odoo, sku, quantity, price, models, db, uid, password)
             logging.info(f"➕ Producto agregado: SKU={sku}, cantidad={quantity}, precio={price}")
 
@@ -387,17 +393,20 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
         # Ordenar lista: primero SKUs que NO son de Funsales (no contienen "|"), luego los de Funsales
         lista_final_sin_duplicados = sorted(
             lista_final_sin_duplicados,
-            key=lambda item: "|" in item["default_code"]
-        )
+            key=lambda item: "|" in str(item.get("default_code", ""))
+)
 
         for producto in lista_final_sin_duplicados:
-            sku = producto.get("default_code", "N/A")
+            sku = producto.get("default_code")
             stock = producto.get("virtual_available", 0.0)
 
-            # ⚠️ No actualizar SKUs de FunSales
-#            if "|" in sku:
-#                logging.info(f"⏭️ SKU {sku} afectado, pero omitido (manejado por FunSales). Stock actual: {stock}")
-#                continue
+            # 🚫 Validación: SKU faltante o inválido
+            if not sku or not isinstance(sku, str):
+                logging.error(
+                    f"❌ Producto con ID={producto.get('id','N/A')} no tiene SKU válido. "
+                    f"Se omitió este registro."
+                )
+                continue
 
             # ⚠️ No actualizar SKUs especiales (descuento/envío)
             if sku in ["DESCUENTO_GLOBAL", "COSTO_ENVIO"]:
@@ -406,7 +415,6 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
 
             if impactar_tn:
                 update_stock_by_sku(sku, stock)
-#                logging.info(f"🔄 Stock actualizado en TiendaNube: SKU={sku}, stock={stock}")
                 time.sleep(0.5)
 
             else:

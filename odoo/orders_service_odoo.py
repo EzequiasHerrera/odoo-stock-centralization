@@ -200,7 +200,7 @@ def cargar_producto_a_orden_de_venta(order_id, sku, cantidad, precio_unitario, m
         )
 
         if not product_ids:
-            logging.warning(f"❌ Producto con SKU '{sku}' no encontrado.")
+            logging.error(f"❌ Producto con SKU '{sku}' no encontrado en Odoo. No se agregó a la orden {order_id}.")
             return None
 
         product_id = product_ids[0]
