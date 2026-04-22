@@ -27,37 +27,56 @@ def get_product_by_sku_tn(sku):
         "Content-Type": "application/json"
     }
 
-    response = requests.get(url, headers=headers)
+    max_retries = 3
+    retries = 0
+    delay = 2  # segundos entre intentos
 
-    if response.status_code != 200:
-        print(f"❌ Error {response.status_code}: {response.text}")
-        return None
+    while retries < max_retries:
+        try:
+            response = requests.get(url, headers=headers)
 
-    productos = response.json()
+            if response.status_code != 200:
+                logging.error(f"❌ Error {response.status_code} al buscar SKU={sku}: {response.text}")
+                retries += 1
+                time.sleep(delay)
+                continue
 
-    if not productos:
-        print("❌ No se encontró ningún producto con ese SKU.")
-        return None
+            productos = response.json()
 
-    producto = productos[0]  # Tomamos el primero que coincide
-    id_padre = producto["id"];
+            if not productos:
+                logging.warning(f"❌ Intento {retries+1}/{max_retries}: No se encontró ningún producto con SKU={sku}.")
+                retries += 1
+                time.sleep(delay)
+                continue
 
-    for variante in producto["variants"]:
-        if variante["sku"] == sku:
-            datos = {
-                "id_padre": id_padre,
-                "id": variante["id"],
-                "sku": variante["sku"],
-                "price": variante["price"],
-                "stock": variante["inventory_levels"][0]["stock"],
-                "values": [v["es"] for v in variante["values"]],
-                "producto_id": producto["id"],
-                "nombre": producto["name"]["es"],
-                "url": producto["canonical_url"]
-            }
-            return datos
+            producto = productos[0]  # Tomamos el primero que coincide
+            id_padre = producto["id"]
 
-    print("❌ No se encontró ninguna variante con ese SKU exacto.")
+            for variante in producto.get("variants", []):
+                if variante.get("sku") == sku:
+                    datos = {
+                        "id_padre": id_padre,
+                        "id": variante["id"],
+                        "sku": variante["sku"],
+                        "price": variante.get("price"),
+                        "stock": variante["inventory_levels"][0]["stock"] if variante.get("inventory_levels") else None,
+                        "values": [v.get("es") for v in variante.get("values", [])],
+                        "producto_id": producto["id"],
+                        "nombre": producto["name"].get("es"),
+                        "url": producto.get("canonical_url")
+                    }
+                    return datos
+
+            logging.warning(f"❌ Intento {retries+1}/{max_retries}: No se encontró ninguna variante exacta con SKU={sku}.")
+            retries += 1
+            time.sleep(delay)
+
+        except Exception as e:
+            logging.exception(f"💥 Error inesperado buscando SKU={sku}: {str(e)}")
+            retries += 1
+            time.sleep(delay)
+
+    logging.error(f"💥 No se pudo obtener producto con SKU={sku} después de {max_retries} intentos.")
     return None
 
 def update_stock_by_sku(sku, stock):
