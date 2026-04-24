@@ -34,7 +34,8 @@ def ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE):
         )
 
         if not registros_pendientes_ids:
-            logging.debug("📭 No hay ajustes de inventario pendientes en x_stock.")
+            logging.info("📭 No hay ajustes de inventario pendientes en x_stock.")
+#            logging.debug("📭 No hay ajustes de inventario pendientes en x_stock.")
             return
 
         registros_pendientes_data = models.execute_kw(
