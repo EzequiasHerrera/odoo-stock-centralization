@@ -49,23 +49,24 @@ def get_product_by_sku_tn(sku):
                 time.sleep(delay)
                 continue
 
-            producto = productos[0]  # Tomamos el primero que coincide
-            id_padre = producto["id"]
+            # Recorro todos los productos devueltos
+            for producto in productos:
+                id_padre = producto["id"]
 
-            for variante in producto.get("variants", []):
-                if variante.get("sku") == sku:
-                    datos = {
-                        "id_padre": id_padre,
-                        "id": variante["id"],
-                        "sku": variante["sku"],
-                        "price": variante.get("price"),
-                        "stock": variante["inventory_levels"][0]["stock"] if variante.get("inventory_levels") else None,
-                        "values": [v.get("es") for v in variante.get("values", [])],
-                        "producto_id": producto["id"],
-                        "nombre": producto["name"].get("es"),
-                        "url": producto.get("canonical_url")
-                    }
-                    return datos
+                for variante in producto.get("variants", []):
+                    if variante.get("sku", "").strip().lower() == sku.strip().lower():
+                        datos = {
+                            "id_padre": id_padre,
+                            "id": variante["id"],
+                            "sku": variante["sku"],
+                            "price": variante.get("price"),
+                            "stock": variante["inventory_levels"][0]["stock"] if variante.get("inventory_levels") else None,
+                            "values": [v.get("es") for v in variante.get("values", [])],
+                            "producto_id": producto["id"],
+                            "nombre": producto["name"].get("es"),
+                            "url": producto.get("canonical_url")
+                        }
+                        return datos
 
             logging.warning(f"❌ Intento {retries+1}/{max_retries}: No se encontró ninguna variante exacta con SKU={sku}.")
             retries += 1

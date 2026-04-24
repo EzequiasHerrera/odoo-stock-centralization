@@ -26,30 +26,37 @@ def get_product_by_sku_tn(sku):
         return None
 
     productos = response.json()
-
     if not productos:
-        print("❌ No se encontró ningún producto con ese SKU.")
+        print(f"❌ TiendaNube no devolvió productos para query q={sku}.")
         return None
 
-    producto = productos[0]
-    id_padre = producto["id"]
+    # Recorro todos los productos devueltos
+    for producto in productos:
+        id_padre = producto["id"]
 
-    for variante in producto["variants"]:
-        if variante["sku"] == sku:
-            datos = {
-                "id_padre": id_padre,
-                "id": variante["id"],
-                "sku": variante["sku"],
-                "price": variante["price"],
-                "stock": variante["inventory_levels"][0]["stock"],
-                "values": [v["es"] for v in variante["values"]],
-                "producto_id": producto["id"],
-                "nombre": producto["name"]["es"],
-                "url": producto["canonical_url"]
-            }
-            return datos
+        # Mostrar todas las variantes devueltas
+        print(f"🔎 Producto encontrado: {producto['name']['es']} (ID={id_padre})")
+        print("➡️ Variantes devueltas:")
+        for v in producto.get("variants", []):
+            print(f"   - SKU={v.get('sku')} | stock={v.get('inventory_levels',[{}])[0].get('stock')}")
 
-    print("❌ No se encontró ninguna variante con ese SKU exacto.")
+        # Comparación exacta (con strip/lower para evitar espacios o mayúsculas)
+        for variante in producto.get("variants", []):
+            if variante.get("sku", "").strip().lower() == sku.strip().lower():
+                datos = {
+                    "id_padre": id_padre,
+                    "id": variante["id"],
+                    "sku": variante["sku"],
+                    "price": variante.get("price"),
+                    "stock": variante.get("inventory_levels",[{}])[0].get("stock"),
+                    "values": [v.get("es") for v in variante.get("values", [])],
+                    "producto_id": producto["id"],
+                    "nombre": producto["name"]["es"],
+                    "url": producto.get("canonical_url")
+                }
+                return datos
+
+    print(f"❌ No se encontró ninguna variante con SKU exacto={sku}.")
     return None
 
 def update_stock_by_sku(sku, stock):
