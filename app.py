@@ -72,8 +72,8 @@ def verify_signature(data, hmac_header):
 def index():
     estados = {
         "api": "🟢 Odoo Stock Centralization está activo",
-        "worker_thread": "✅ vivo" if worker_thread.is_alive() else "❌ detenido",
-        "ajuste_thread": "✅ vivo" if ajuste_thread.is_alive() else "❌ detenido"
+#        "worker_thread": "✅ vivo" if worker_thread.is_alive() else "❌ detenido",
+#        "ajuste_thread": "✅ vivo" if ajuste_thread.is_alive() else "❌ detenido"
     }
     return estados, 200
 
@@ -438,16 +438,16 @@ def procesar_orden_odoo(order_name, models, db, uid, password, BOM_CACHE):
 
 
 # Variables globales para guardar los threads
-worker_thread = threading.Thread(target=worker_loop, daemon=True)
-ajuste_thread = threading.Thread(target=ajuste_inventario, daemon=True)
+#worker_thread = threading.Thread(target=worker_loop, daemon=True)
+#ajuste_thread = threading.Thread(target=ajuste_inventario, daemon=True)
 
 # 🧵 Lanzar worker y tarea periódica al importar el módulo (Render usa gunicorn app:app)
 time.sleep(5)  # ⏳ Esperar a que Gunicorn estabilice
 
 # Iniciar los threads y guardar referencia
-worker_thread.start()
-ajuste_thread.start()
+#worker_thread.start()
+#ajuste_thread.start()
 
 
-#threading.Thread(target=worker_loop, daemon=True).start()
-#threading.Thread(target=ajuste_inventario, daemon=True).start()
+threading.Thread(target=worker_loop, daemon=True).start()
+threading.Thread(target=ajuste_inventario, daemon=True).start()
