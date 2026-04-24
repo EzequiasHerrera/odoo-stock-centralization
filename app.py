@@ -178,7 +178,7 @@ def worker_loop():
             logging.exception(f"💥 Error en worker: {str(e)}")
 
         time.sleep(30)
-        logging.info("👷 Worker buscando ordenes de venta pendientes.")
+        logging.debug("👷 Worker buscando ordenes de venta pendientes.")
 
 
 def encolar_orden(order_id):
@@ -220,7 +220,6 @@ def ajuste_inventario():
 
     while True:
         try:
-#            logging.info("⏱ Ejecutando tarea periódica...")
             if impactar_tn: 
                 ajustes_inventario_pendientes(models, db, uid, password, BOM_CACHE)
             else:

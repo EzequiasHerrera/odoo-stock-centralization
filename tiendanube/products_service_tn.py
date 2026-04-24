@@ -82,10 +82,10 @@ def get_product_by_sku_tn(sku):
 def update_stock_by_sku(sku, stock):
     # 🚫 Control de stock inválido
     if stock < 0:
-        logging.error(f"❌ Stock inválido ({stock}) para SKU={sku}. No se envió actualización a TiendaNube.")
-        return
+        logging.warning(f"⚠️ Stock recibido inválido ({stock}) para SKU={sku} -> Se ajusta a 0. ")
+        stock = 0  # Forzar stock a 0
 
-    product = get_product_by_sku_tn(sku);
+    product = get_product_by_sku_tn(sku)
     if not product:
         logging.warning(f"❌ No se encontró producto con SKU {sku} en TiendaNube. No se actualizó stock.")
         return
