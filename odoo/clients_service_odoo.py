@@ -3,7 +3,8 @@ import logging
 
 # Se obtiene el cliente por documento y si no se encuentra se ejecuta la función crear_cliente
 # Se modifica para que no busque,sino que directamente grabe el cliente con los datos que tenga
-def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, uid=None, password=None):
+def get_client_id_by_dni(dni=None, name=None, email=None, phone=None, shipping_data=None,
+                         models=None, db=None, uid=None, password=None):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo establecer conexión con Odoo.")
         return None
@@ -11,7 +12,7 @@ def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, 
     try:
         if not dni:
             logging.warning("⚠️ DNI no definido. Se procederá a crear el cliente sin búsqueda previa.")
-            nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)
+            nuevo_id = crear_cliente(name, email, dni, phone, shipping_data, models, db, uid, password)
             logging.info(f"✅ Cliente creado sin DNI con ID: {nuevo_id}")
             return nuevo_id
 
@@ -37,7 +38,7 @@ def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, 
 
             if nombre_odoo != nombre_recibido:
                 logging.warning(f"⚠️ Nombre recibido ({name}) no coincide con el registrado ({partner_data['name']}). Se creará nuevo cliente.")
-                nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)
+                nuevo_id = crear_cliente(name, email, dni, phone, shipping_data, models, db, uid, password)
                 logging.info(f"✅ Cliente nuevo creado con mismo DNI pero nombre distinto: ID={nuevo_id}")
                 return nuevo_id
 
@@ -45,7 +46,7 @@ def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, 
             return partner_id
 
         # Si no existe, lo creo
-        nuevo_id = crear_cliente(name, email, dni, models, db, uid, password)
+        nuevo_id = crear_cliente(name, email, dni, phone, shipping_data, models, db, uid, password)
         logging.info(f"✅ Cliente creado con ID: {nuevo_id}")
         return nuevo_id
 
@@ -54,7 +55,8 @@ def get_client_id_by_dni(dni=None, name=None, email=None, models=None, db=None, 
         return None
 
 
-def crear_cliente(name=None, email=None, dni=None, models=None, db=None, uid=None, password=None):
+def crear_cliente(name=None, email=None, dni=None, phone=None, shipping_data=None,
+                  models=None, db=None, uid=None, password=None):
     if not all([models, db, uid, password]):
         logging.error("❌ No se pudo establecer conexión con Odoo para crear cliente.")
         return None
@@ -62,21 +64,37 @@ def crear_cliente(name=None, email=None, dni=None, models=None, db=None, uid=Non
     try:
         cliente_data = {}
 
-        if name:
-            cliente_data["name"] = name
-        else:
-            cliente_data["name"] = "Cliente sin nombre"
+        # Nombre y email
+        cliente_data["name"] = name if name else "Cliente sin nombre"
+        cliente_data["email"] = email if email else "cliente@pintimates.com.ar"
+        cliente_data["vat"] = dni if dni else "99999999"
 
-        if email:
-            cliente_data["email"] = email
-        else:
-            cliente_data["email"] = "cliente@pintimates.com.ar"
+        # Teléfono
+        if phone:
+            cliente_data["phone"] = phone
 
-        if dni:
-            cliente_data["vat"] = dni
-        else:
-            cliente_data["vat"] = "99999999"
+        # Dirección
+        if shipping_data:
+            calle = shipping_data.get("address") or ""
+            numero = shipping_data.get("number") or ""
+            piso = shipping_data.get("floor") or ""
+            cliente_data["street"] = f"{calle} {numero} {piso}".strip()
 
+            cliente_data["street2"] = shipping_data.get("locality") or ""
+            cliente_data["city"] = shipping_data.get("city") or ""
+            cliente_data["zip"] = shipping_data.get("zipcode") or ""
+
+            # Provincia: requiere ID en Odoo
+            provincia_nombre = shipping_data.get("province")
+            if provincia_nombre:
+                state_ids = models.execute_kw(
+                    db, uid, password,
+                    "res.country.state", "search",
+                    [[["name", "ilike", provincia_nombre]]],
+                    {"limit": 1}
+                )
+                if state_ids:
+                    cliente_data["state_id"] = state_ids[0]
 
         nuevo_cliente_id = models.execute_kw(
             db, uid, password,

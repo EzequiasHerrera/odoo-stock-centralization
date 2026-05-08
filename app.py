@@ -253,11 +253,18 @@ def procesar_orden(order_id, models, db, uid, password, BOM_CACHE):
         order_data = extract_order_data(order)
         logging.info(f"📦 Datos extraídos de la orden {order_id}: {order_data}")
 
+
         client_dni = order_data.get("client_data", {}).get("dni")
         client_name = order_data.get("client_data", {}).get("name")
         client_email = order_data.get("client_data", {}).get("email")
+        client_phone = order_data.get("client_data", {}).get("phone")
+        shipping_data = order_data.get("shipping_data", {})
 
-        client_id_odoo = get_client_id_by_dni(client_dni, client_name, client_email, models, db, uid, password)
+        client_id_odoo = get_client_id_by_dni(
+            client_dni, client_name, client_email, client_phone, shipping_data,
+            models, db, uid, password
+        )
+
         date = datetime.now()
         
         order_number = order_data.get("order_number") or ""
