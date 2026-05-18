@@ -29,7 +29,7 @@ def get_product_by_sku_tn(sku):
 
     max_retries = 3
     retries = 0
-    delay = 2  # segundos entre intentos
+    delay = 5  # segundos entre intentos
 
     while retries < max_retries:
         try:
@@ -38,7 +38,7 @@ def get_product_by_sku_tn(sku):
             if response.status_code != 200:
                 logging.error(f"❌ Error {response.status_code} al buscar SKU={sku}: {response.text}")
                 retries += 1
-                time.sleep(delay)
+                time.sleep(delay * (2 ** (retries - 1)))
                 continue
 
             productos = response.json()
@@ -46,7 +46,7 @@ def get_product_by_sku_tn(sku):
             if not productos:
                 logging.warning(f"❌ Intento {retries+1}/{max_retries}: No se encontró ningún producto con SKU={sku}.")
                 retries += 1
-                time.sleep(delay)
+                time.sleep(delay * (2 ** (retries - 1)))
                 continue
 
             # Recorro todos los productos devueltos
@@ -70,12 +70,12 @@ def get_product_by_sku_tn(sku):
 
             logging.warning(f"❌ Intento {retries+1}/{max_retries}: No se encontró ninguna variante exacta con SKU={sku}.")
             retries += 1
-            time.sleep(delay)
+            time.sleep(delay * (2 ** (retries - 1)))
 
         except Exception as e:
             logging.exception(f"💥 Error inesperado buscando SKU={sku}: {str(e)}")
             retries += 1
-            time.sleep(delay)
+            time.sleep(delay * (2 ** (retries - 1)))
 
     logging.error(f"💥 No se pudo obtener producto con SKU={sku} después de {max_retries} intentos.")
     return None
@@ -116,7 +116,7 @@ def update_stock_by_sku(sku, stock):
             logging.info(f"✅ Stock actualizado a {stock} para producto {product['nombre']} (SKU={sku})")
             return
         elif response.status_code == 429:
-            wait_time = 2 ** retries  # backoff exponencial: 1s, 2s, 4s, 8s, 16s
+            wait_time = 10 ** retries  # backoff exponencial: 10s, 20s, 40s, 80s, 160s
             logging.warning(f"⚠️ Rate limit alcanzado (429) para SKU={sku}. Reintentando en {wait_time} segundos...")
             time.sleep(wait_time)
             retries += 1
